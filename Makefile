@@ -2,10 +2,10 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall Wextra -std=c++11
+CXXFLAGS = -Wall -Wextra -std=c++11
 
 # Linker flags
-LDFLAGS = 
+LDFLAGS = -pthread
 
 # Source files
 SRCS = $(wildcard *.cpp)
@@ -16,6 +16,8 @@ OBJS = $(SRCS:.cpp=.o)	# replace all '.cpp' with '.o' in SRCS
 # Executable file
 TARGET = my_ospf
 
+.PHONY: all clean
+
 # Final Target
 all : $(TARGET)
 
@@ -24,10 +26,8 @@ all : $(TARGET)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Link object files to executable
-$(EXEC): $(OBJS)
+$(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) $(OBJS) -o $(TARGET)
 
 clean:
 	rm -rf $(TARGET) *.o
-
-my_ospfd: main.c

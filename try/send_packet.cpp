@@ -1,5 +1,5 @@
-#include "common.h"
-#include "ospf_packet.h"
+#include "../common.h"
+#include "../ospf_packet.h"
 
 void setDstAddr(sockaddr_in& dst_addr, const char* dst);
 

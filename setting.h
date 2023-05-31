@@ -3,6 +3,8 @@
 
 #include <arpa/inet.h> // contains <netinet/in.h> 
 
+#define DEBUG 1
+
 namespace myconfigs 
 {
     

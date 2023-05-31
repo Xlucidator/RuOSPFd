@@ -30,7 +30,6 @@ void* threadSendHelloPackets(void* intf) {
     int socket_fd;
     if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
         perror("[Thread]SendHelloPacket: socket_fd init");
-        return;
     }
 
     struct ifreq ifr;
@@ -38,7 +37,6 @@ void* threadSendHelloPackets(void* intf) {
     strcpy(ifr.ifr_name, myconfigs::nic_name);
     if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0) {
         perror("[Thread]SendHelloPacket: setsockopt");
-        return;
     }
 
     /* Set Address : broadcast */
@@ -49,20 +47,22 @@ void* threadSendHelloPackets(void* intf) {
 
     char* packet = (char*)malloc(65535);
     while (true) {
+        // add neighbor
+        size_t packet_real_len = sizeof(OSPFHeader) + sizeof(OSPFHello) + 4 * interface->neighbor_list.size();
+
         /* OSPF Header */
         OSPFHeader* ospf_header = (OSPFHeader*)packet;
         ospf_header->version = 2;
         ospf_header->type = 1; // Hello Type
-        ospf_header->packet_length = htons(sizeof(OSPFHeader) + sizeof(OSPFHello) + 4 * interface->neighbor_list.size());
+        ospf_header->packet_length = htons(packet_real_len);
         ospf_header->router_id = htonl(myconfigs::router_id);
         ospf_header->area_id = htonl(myconfigs::area_id);
-        // ospf_header->checksum = 0;
         ospf_header->autype = 0;
         ospf_header->authentication[0] = 0;
         ospf_header->authentication[1] = 0;
 
         /* OSPF Hello */
-        OSPFHello* ospf_hello = (OSPFHello*)(packet + sizeof(ospf_header)); 
+        OSPFHello* ospf_hello = (OSPFHello*)(packet + sizeof(OSPFHeader)); 
         ospf_hello->network_mask = htonl(0xffffff00);
         ospf_hello->hello_interval = htons(10);
         ospf_hello->options = 0x02;
@@ -77,12 +77,17 @@ void* threadSendHelloPackets(void* intf) {
             *ospf_attach++ = htonl(nbr->id);
         }
         // calculte checksum
-        ospf_header->checksum = packet_checksum(ospf_header, ospf_header->packet_length);
+        ospf_header->checksum = packet_checksum(ospf_header, packet_real_len);
 
         /* Send Packet */
-        if (sendto(socket_fd, packet, sizeof(packet), 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
+        if (sendto(socket_fd, packet, packet_real_len, 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
             perror("[Thread]SendHelloPacket: sendto");
-        }
+        } 
+        #ifdef DEBUG
+            else {
+                printf("[Thread]SendHelloPacket: send success\n");
+            }
+        #endif
         sleep(10);
     }
 }

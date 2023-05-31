@@ -22,6 +22,9 @@
 #include <net/if.h>
 #include <arpa/inet.h>  // inet_addr
 
+/* setting */
+#include "setting.h"
+
 #define CLEAR_STRUCT(S) memset(&S, 0, sizeof(S))
 
 #endif //COMMON_H

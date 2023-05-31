@@ -1,4 +1,5 @@
 *.o
 *.out
+my_ospf
 
 .vscode

@@ -9,8 +9,8 @@
 class Interface {
 public:
 
-    uint32_t    dr;
-    uint32_t    bdr;
+    uint32_t    dr = 0;
+    uint32_t    bdr = 0;
     std::list<Neighbor*> neighbor_list;
     Interface()=default;
 };
