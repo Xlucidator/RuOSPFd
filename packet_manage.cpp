@@ -48,7 +48,7 @@ void* threadSendHelloPackets(void* intf) {
     char* packet = (char*)malloc(65535);
     while (true) {
         // add neighbor
-        size_t packet_real_len = sizeof(OSPFHeader) + sizeof(OSPFHello) + 4 * interface->neighbor_list.size();
+        size_t packet_real_len = OSPFHDR_LEN + sizeof(OSPFHello) + 4 * interface->neighbor_list.size();
 
         /* OSPF Header */
         OSPFHeader* ospf_header = (OSPFHeader*)packet;
@@ -62,7 +62,7 @@ void* threadSendHelloPackets(void* intf) {
         ospf_header->authentication[1] = 0;
 
         /* OSPF Hello */
-        OSPFHello* ospf_hello = (OSPFHello*)(packet + sizeof(OSPFHeader)); 
+        OSPFHello* ospf_hello = (OSPFHello*)(packet + OSPFHDR_LEN); 
         ospf_hello->network_mask = htonl(0xffffff00);
         ospf_hello->hello_interval = htons(10);
         ospf_hello->options = 0x02;
@@ -72,7 +72,7 @@ void* threadSendHelloPackets(void* intf) {
         ospf_hello->backup_designated_router = htonl(interface->bdr);
 
         /* OSPF Attach */
-        uint32_t* ospf_attach = (uint32_t*)(packet + sizeof(OSPFHeader) + sizeof(OSPFHello));
+        uint32_t* ospf_attach = (uint32_t*)(packet + OSPFHDR_LEN + sizeof(OSPFHello));
         for (auto& nbr: interface->neighbor_list) {
             *ospf_attach++ = htonl(nbr->id);
         }
@@ -83,11 +83,65 @@ void* threadSendHelloPackets(void* intf) {
         if (sendto(socket_fd, packet, packet_real_len, 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
             perror("[Thread]SendHelloPacket: sendto");
         } 
-        #ifdef DEBUG
-            else {
-                printf("[Thread]SendHelloPacket: send success\n");
-            }
-        #endif
+    #ifdef DEBUG
+        else {
+            printf("[Thread]SendHelloPacket: send success\n");
+        }
+    #endif
         sleep(10);
     }
+}
+
+void* threadRecvPacket(void *intf) {
+    Interface *interface = (Interface*) intf;
+    int socket_fd;
+    if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
+        perror("[Thread]RecvPacket: socket_fd init");
+    }
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strcpy(ifr.ifr_name, myconfigs::nic_name);
+
+#define RECV_LEN 1024
+    char* packet_rcv = (char*)malloc(RECV_LEN);
+    while (true) {
+        memset(packet_rcv, 0, RECV_LEN);
+        recv(socket_fd, packet_rcv, RECV_LEN, 0);
+        in_addr_t src_ip = ntohl(*(uint32_t*)(packet_rcv + IPHDR_SRCIP));
+        if (src_ip == interface->ip) {
+            continue; // from self, ignore
+        }
+
+        OSPFHeader* ospf_header = (OSPFHeader*)(packet_rcv + IPHDR_LEN);
+        /* translate : net to host */
+        ospf_header->packet_length = ntohs(ospf_header->packet_length);
+        ospf_header->router_id     = ntohl(ospf_header->router_id    );
+        ospf_header->area_id       = ntohl(ospf_header->area_id      );
+        ospf_header->checksum      = ntohl(ospf_header->checksum     );
+
+        if (ospf_header->type == T_HELLO) {
+        #ifdef DEBUG
+            printf("[Thread]RecvPacket: Hello packet\n");
+        #endif
+            OSPFHello* ospf_hello = (OSPFHello*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
+            Neighbor* neighbor;
+
+            if ((neighbor = interface->getNeighbor(src_ip)) == nullptr) {
+                neighbor = interface->addNeighbor(src_ip);
+            }
+            neighbor->id   = ospf_header->router_id;
+            neighbor->ndr  = ospf_hello->designated_router;
+            neighbor->nbdr = ospf_hello->backup_designated_router;
+        }
+
+        if (ospf_header->type == T_DD) {
+        #ifdef DEBUG
+            printf("[Thread]RecvPacket: DD packet\n");
+        #endif
+            OSPFDD* ospf_dd = (OSPFDD*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
+
+        }
+    }
+#undef RECV_LEN
 }

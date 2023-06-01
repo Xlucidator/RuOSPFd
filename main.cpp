@@ -11,9 +11,10 @@ int main(int argc, char** argv) {
     // start_ospfd();
     pthread_t hello_sender_thread;
 
-    Interface myhost;
+    Interface my_interface;
+    my_interface.ip = ntohl(inet_addr("192.168.75.128")); // TODO: read nic for addr
 
-    pthread_create(&hello_sender_thread, NULL, threadSendHelloPackets, &myhost);
+    pthread_create(&hello_sender_thread, NULL, threadSendHelloPackets, &my_interface);
 
     pthread_join(hello_sender_thread, NULL);
 

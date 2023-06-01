@@ -3,7 +3,21 @@
 
 #include <stdint.h>
 
-#define IPPROTO_OSPF (89)
+#define IPPROTO_OSPF    (89)
+
+#define IPHDR_LEN       (20)
+#define IPHDR_SRCIP     (12)
+
+#define OSPFHDR_LEN     (sizeof(OSPFHeader))
+
+
+enum OSPFType: uint8_t {
+    T_HELLO = 1,
+    T_DD,
+    T_LSR,
+    T_LSU,
+    T_LSAck
+};
 
 /* Packet Header */
 struct OSPFHeader {
