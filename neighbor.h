@@ -34,16 +34,32 @@ enum struct NeighborEvent : uint8_t {
 class Neighbor {
 public:
     NeighborState state;
-    uint32_t id;    
-    uint32_t ip;
-    uint32_t ndr;
-    uint32_t nbdr;
-    Interface* host_interface;
+    bool        is_master;
+    uint32_t    dd_seq_num;
+
+    /* last received DD packet from the neighbor */
+    uint32_t    last_dd_seq_num;
+    uint32_t    last_dd_seq_len;
+    uint8_t     last_dd_packet[1024];
+
+    /* neighbor details */
+    uint32_t    id;  
+    uint32_t    priority;  
+    uint32_t    ip;
+    uint32_t    ndr;    // neighbor's designated router
+    uint32_t    nbdr;   // neighbor's backup designated router
+    Interface*  host_interface;
+
+    /* LSA information */
+    // TODO: link state retransmission list
+    // TODO: database summary list
+    // TODO: link state request list
 
     Neighbor()=default;
     Neighbor(in_addr_t ip):ip(ip) {}
 
-    void helloBeenReceived();
+    void eventHelloReceived();  // neighbor's hello has been received
+    void event2WayReceived();
 };
 
 #endif // NEIGHBOR_H

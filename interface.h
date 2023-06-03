@@ -28,8 +28,20 @@ enum struct InterfaceEvent : uint8_t {
 
 class Interface {
 public:
+    InterfaceState state;
     in_addr_t   ip;
     uint32_t    mask;
+    uint32_t    area_id;
+
+    uint32_t    hello_intervel = 10;
+    uint32_t    router_dead_interval = 40;
+    uint32_t    intf_trans_delay;
+
+    // TODO: Timer
+    
+    uint32_t    cost;
+    uint32_t    mtu;
+
     uint32_t    dr = 0;
     uint32_t    bdr = 0;
     std::list<Neighbor*> neighbor_list;
