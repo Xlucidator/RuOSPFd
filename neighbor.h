@@ -2,7 +2,6 @@
 #define NEIGHBOR_H
 
 #include "common.h"
-#include "interface.h"
 
 enum struct NeighborState : uint8_t {
     S_DOWN = 0,
@@ -31,9 +30,11 @@ enum struct NeighborEvent : uint8_t {
     E_LLDOWN,
 };
 
+class Interface;
+
 class Neighbor {
 public:
-    NeighborState state;
+    NeighborState state = NeighborState::S_DOWN;
     bool        is_master;
     uint32_t    dd_seq_num;
 
@@ -55,11 +56,17 @@ public:
     // TODO: database summary list
     // TODO: link state request list
 
-    Neighbor()=default;
-    Neighbor(in_addr_t ip):ip(ip) {}
+    Neighbor(in_addr_t ip);
+    Neighbor(in_addr_t ip, Interface* intf);
 
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
 };
+
+Neighbor::Neighbor(in_addr_t ip):ip(ip) {
+    state = NeighborState::S_DOWN;
+    host_interface = nullptr;
+}
+
 
 #endif // NEIGHBOR_H

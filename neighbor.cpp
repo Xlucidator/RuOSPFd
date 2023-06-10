@@ -1,6 +1,10 @@
-#include "neighbor.h"
 
-#include "common.h"
+#include "interface.h"
+
+Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
+    state = NeighborState::S_DOWN;
+    host_interface = intf;
+}
 
 void Neighbor::eventHelloReceived() {
     printf("Neighbor %d received HelloReceived ", this->id);

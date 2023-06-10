@@ -9,6 +9,7 @@
 #define IPHDR_SRCIP     (12)
 
 #define OSPFHDR_LEN     (sizeof(OSPFHeader))
+#define OSPF_HELLO_LEN  (OSPFHDR_LEN + sizeof(OSPFHello))
 
 
 enum OSPFType: uint8_t {
