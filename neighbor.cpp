@@ -1,4 +1,4 @@
-#include "neighbor.h"
+#include "interface.h"
 
 #include "common.h"
 

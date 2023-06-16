@@ -2,7 +2,6 @@
 #define NEIGHBOR_H
 
 #include "common.h"
-#include "interface.h"
 
 enum struct NeighborState : uint8_t {
     S_DOWN = 0,
@@ -30,6 +29,8 @@ enum struct NeighborEvent : uint8_t {
     E_INACTTIMER,
     E_LLDOWN,
 };
+
+class Interface;
 
 class Neighbor {
 public:
