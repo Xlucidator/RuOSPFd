@@ -1,7 +1,5 @@
 #include "ospf_packet.h"
-#include "setting.h"
 
-#include "common.h"
 #include "interface.h"
 
 uint16_t packet_checksum(const void* data, size_t len) {
@@ -72,7 +70,7 @@ void* threadSendHelloPackets(void* intf) {
         ospf_hello->backup_designated_router = htonl(interface->bdr);
 
         /* OSPF Attach */
-        uint32_t* ospf_attach = (uint32_t*)(packet + OSPFHDR_LEN + sizeof(OSPFHello));
+        uint32_t* ospf_attach = (uint32_t*)(packet + OSPF_HELLO_LEN);
         for (auto& nbr: interface->neighbor_list) {
             *ospf_attach++ = htonl(nbr->id);
         }
@@ -131,8 +129,24 @@ void* threadRecvPacket(void *intf) {
                 neighbor = interface->addNeighbor(src_ip);
             }
             neighbor->id   = ospf_header->router_id;
-            neighbor->ndr  = ospf_hello->designated_router;
-            neighbor->nbdr = ospf_hello->backup_designated_router;
+            uint32_t prev_ndr   = neighbor->ndr;
+            uint32_t prev_nbdr  = neighbor->nbdr;
+            neighbor->ndr  = ntohl(ospf_hello->designated_router);
+            neighbor->nbdr = ntohl(ospf_hello->backup_designated_router);
+
+            neighbor->eventHelloReceived();
+
+            bool to_2way = false;
+            /* Decide 1way or 2way: check whether Hello attached-info has self-routerid */ 
+            uint32_t* ospf_attach = (uint32_t*)(packet_rcv + IPHDR_LEN + OSPF_HELLO_LEN);
+            uint32_t* ospf_end = (uint32_t*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
+            for (;ospf_attach != ospf_end; ++ospf_attach) {
+                if (*ospf_attach == htonl(myconfigs::router_id)) {
+                    to_2way = true;
+                    neighbor->event2WayReceived();
+                    break;
+                }
+            }
         }
 
         if (ospf_header->type == T_DD) {
