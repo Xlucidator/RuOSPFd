@@ -1,6 +1,7 @@
 #include "ospf_packet.h"
 
 #include "interface.h"
+#include "common.h"
 
 uint16_t packet_checksum(const void* data, size_t len) {
     uint32_t sum = 0;

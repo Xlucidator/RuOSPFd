@@ -1,5 +1,10 @@
-
+#include "common.h"
 #include "interface.h"
+
+Neighbor::Neighbor(in_addr_t ip):ip(ip) {
+    state = NeighborState::S_DOWN;
+    host_interface = nullptr;
+}
 
 Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     state = NeighborState::S_DOWN;

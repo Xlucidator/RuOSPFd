@@ -1,5 +1,6 @@
 *.o
 *.out
 my_ospf
+try/test.cpp
 
 .vscode

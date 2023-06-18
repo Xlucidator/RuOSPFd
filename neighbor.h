@@ -1,7 +1,8 @@
 #ifndef NEIGHBOR_H
 #define NEIGHBOR_H
 
-#include "common.h"
+#include <stdint.h>
+#include <arpa/inet.h>
 
 enum struct NeighborState : uint8_t {
     S_DOWN = 0,
@@ -62,11 +63,6 @@ public:
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
 };
-
-Neighbor::Neighbor(in_addr_t ip):ip(ip) {
-    state = NeighborState::S_DOWN;
-    host_interface = nullptr;
-}
 
 
 #endif // NEIGHBOR_H

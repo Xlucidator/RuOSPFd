@@ -1,8 +1,8 @@
 #ifndef PACKET_MANAGE_H
 #define PACKET_MANAGE_H
 
-#include "common.h"
 #include "interface.h"
+#include <stdint.h>
 
 uint16_t packet_checksum(const void* data, size_t len);
 

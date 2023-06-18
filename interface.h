@@ -1,9 +1,8 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-#include "common.h"
-
 #include <list>
+#include <stdint.h>
 #include "neighbor.h"
 
 enum struct NetworkType : uint8_t {
