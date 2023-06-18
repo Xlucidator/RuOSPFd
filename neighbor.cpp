@@ -1,13 +1,14 @@
 #include "common.h"
 #include "interface.h"
 
-Neighbor::Neighbor(in_addr_t ip):ip(ip) {
-    state = NeighborState::S_DOWN;
-    host_interface = nullptr;
-}
 
 Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     state = NeighborState::S_DOWN;
+    is_master = false;
+    dd_seq_num = 0;
+    last_dd_seq_num = 0;
+    last_dd_seq_len = 0;
+    priority = 1;
     host_interface = intf;
 }
 
@@ -21,12 +22,42 @@ void Neighbor::eventHelloReceived() {
 
 void Neighbor::event2WayReceived() {
     printf("Neighbor %d received 2WayReceived ", this->id);
-    if (state == NeighborState::S_INIT) {
-        // TODO: send DD Packet
-        dd_seq_num = 0;
-        is_master = true;
+    if (state == NeighborState::S_INIT) {      
 
+        Interface* h_intf = this->host_interface;
+        NetworkType intf_type = h_intf->type;
+
+        switch (intf_type) {
+            case NetworkType::T_BROADCAST: 
+            case NetworkType::T_NBMA: {
+                if (this->id != this->ndr && this->id != this->nbdr &&
+                    myconfigs::router_id != this->ndr && 
+                    myconfigs::router_id != this->nbdr) {
+                    /* do not forms adjacency */
+                    state = NeighborState::S_2WAY;
+                    printf("and its state from INIT -> 2-WAY.\n");
+                    break;
+                }
+            }
+
+            default: {
+                /* forms adjacency */
+                state = NeighborState::S_EXSTART;
+                printf("and its state from INIT -> EXSTART.\n");
+                /* start to send DD packet */
+                dd_seq_num = 0;
+                is_master = true;
+                // TODO: send DD pakcet
+                break;
+            }
+        }
+    }
+}
+
+void Neighbor::event1WayReceived() {
+    printf("Neighbor %d received 1WayReceived ", this->id);
+    if (state == NeighborState::S_2WAY) { // TODO: above 2WAY
         state = NeighborState::S_INIT;
-        printf("and its state from INIT -> EXSTART.\n");
+        printf("and its state from 2-WAY -> INIT.\n");
     }
 }

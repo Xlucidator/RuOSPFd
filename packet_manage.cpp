@@ -109,7 +109,7 @@ void* threadRecvPacket(void *intf) {
         recv(socket_fd, packet_rcv, RECV_LEN, 0);
         in_addr_t src_ip = ntohl(*(uint32_t*)(packet_rcv + IPHDR_SRCIP));
         if (src_ip == interface->ip) {
-            continue; // from self, ignore
+            continue; // from self, finish packet process
         }
 
         OSPFHeader* ospf_header = (OSPFHeader*)(packet_rcv + IPHDR_LEN);
@@ -134,6 +134,7 @@ void* threadRecvPacket(void *intf) {
             uint32_t prev_nbdr  = neighbor->nbdr;
             neighbor->ndr  = ntohl(ospf_hello->designated_router);
             neighbor->nbdr = ntohl(ospf_hello->backup_designated_router);
+            neighbor->priority = ntohl(ospf_hello->rtr_pri);
 
             neighbor->eventHelloReceived();
 
@@ -147,6 +148,17 @@ void* threadRecvPacket(void *intf) {
                     neighbor->event2WayReceived();
                     break;
                 }
+            }
+            if (!to_2way) {
+                neighbor->event1WayReceived();
+                continue; // finish packet process
+            }
+
+            /* Decide NeighborChange / BackupSeen Event */
+            if (neighbor->ip == neighbor->ndr &&
+                neighbor->nbdr == 0x00000000 &&
+                interface->state == InterfaceState::S_WAITING) {
+                interface->eventBackUpSeen();
             }
         }
 

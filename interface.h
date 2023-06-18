@@ -44,6 +44,7 @@ public:
     uint32_t    hello_intervel = 10;
     uint32_t    router_dead_interval = 40;
     uint32_t    intf_trans_delay;
+    uint32_t    router_priority = 1;
 
     // TODO: Timer
 
@@ -57,6 +58,13 @@ public:
     Interface()=default;
     Neighbor* getNeighbor(in_addr_t ip);
     Neighbor* addNeighbor(in_addr_t ip);
+    /* event */
+    void eventInterfaceUp();
+    void eventWaitTimer();
+    void eventBackUpSeen();
+    void eventNeighborChange();
+private:
+    void electDesignedRouter();
 };
 
 #endif // INTERFACE_H

@@ -57,11 +57,11 @@ public:
     // TODO: database summary list
     // TODO: link state request list
 
-    Neighbor(in_addr_t ip);
     Neighbor(in_addr_t ip, Interface* intf);
 
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
+    void event1WayReceived();
 };
 
 
