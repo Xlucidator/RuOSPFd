@@ -20,8 +20,54 @@ uint16_t packet_checksum(const void* data, size_t len) {
     return static_cast<uint16_t>(~sum);
 }
 
-void threadSendPackets() {
+void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst_ip, Interface* interface) {
+    int socket_fd;
+    if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
+        perror("SendPacket: socket_fd init");
+    }
 
+    /* Bind sockets to certain Network Interface */
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strcpy(ifr.ifr_name, myconfigs::nic_name);
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0) {
+        perror("SendPacket: setsockopt");
+    }
+
+    /* Set Dst Address : certain ip */
+    struct sockaddr_in dst_sockaddr;
+    memset(&dst_sockaddr, 0, sizeof(dst_sockaddr));
+    dst_sockaddr.sin_family = AF_INET;
+    dst_sockaddr.sin_addr.s_addr = htonl(dst_ip);
+
+    char* packet = (char*)malloc(65535);
+    size_t packet_len = OSPFHDR_LEN + data_len;
+    /* OSPF Header */
+    OSPFHeader* ospf_header = (OSPFHeader*)packet;
+    ospf_header->version = 2;
+    ospf_header->type = type;
+    ospf_header->packet_length = htons(packet_len);
+    ospf_header->router_id = htonl(myconfigs::router_id);
+    ospf_header->area_id   = htonl(myconfigs::area_id);
+    ospf_header->autype = 0;
+    ospf_header->authentication[0] = 0;
+    ospf_header->authentication[1] = 0;
+
+    /* OSPF Data */
+    memcpy(packet + OSPFHDR_LEN, ospf_data, data_len);
+
+    // calculte checksum
+    ospf_header->checksum = packet_checksum(ospf_header, packet_len);
+
+    /* Send OSPF Packet */
+    if (sendto(socket_fd, packet, packet_len, 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
+            perror("SendPacket: sendto");
+    } 
+#ifdef DEBUG
+    else {
+        printf("SendPacket: send success\n");
+    }
+#endif
 }
 
 void* threadSendHelloPackets(void* intf) {
@@ -31,6 +77,7 @@ void* threadSendHelloPackets(void* intf) {
         perror("[Thread]SendHelloPacket: socket_fd init");
     }
 
+    /* Bind sockets to certain Network Interface */
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strcpy(ifr.ifr_name, myconfigs::nic_name);
@@ -38,7 +85,7 @@ void* threadSendHelloPackets(void* intf) {
         perror("[Thread]SendHelloPacket: setsockopt");
     }
 
-    /* Set Address : broadcast */
+    /* Set Address : multicast */
     struct sockaddr_in dst_sockaddr;
     memset(&dst_sockaddr, 0, sizeof(dst_sockaddr));
     dst_sockaddr.sin_family = AF_INET;
@@ -89,6 +136,28 @@ void* threadSendHelloPackets(void* intf) {
     #endif
         sleep(10);
     }
+}
+
+void* threadSendEmptyDDPackets(void* nbr) {
+    Neighbor* neighbor = (Neighbor*)nbr;
+
+    while (true) {
+        if (neighbor->state != NeighborState::S_EXSTART) {
+            break;
+        }
+
+        OSPFDD ospf_dd;
+        memset(&ospf_dd, 0, sizeof(ospf_dd));
+        ospf_dd.interface_MTU = htons(neighbor->host_interface->mtu);
+        ospf_dd.options = 0x02; // 8bit: | * | * | DC | EA | N/P | MC | E | * |  
+        ospf_dd.sequence_number = neighbor->dd_seq_num;
+        ospf_dd.b_I = ospf_dd.b_M = ospf_dd.b_MS = 1;
+
+        sendPackets((char *)&ospf_dd, sizeof(ospf_dd), T_DD, neighbor->ip, neighbor->host_interface);
+        printf("[Thread]SendEmptyDDPacket: send success\n");
+        sleep(30);   // Retransmit RxmtInterval
+    }
+    
 }
 
 void* threadRecvPacket(void *intf) {
@@ -155,19 +224,82 @@ void* threadRecvPacket(void *intf) {
             }
 
             /* Decide NeighborChange / BackupSeen Event */
-            if (neighbor->ip == neighbor->ndr &&
+            /* == about DR == */
+            if (neighbor->ndr  == neighbor->ip &&
                 neighbor->nbdr == 0x00000000 &&
-                interface->state == InterfaceState::S_WAITING) {
+                interface->state == InterfaceState::S_WAITING
+                ) {
                 interface->eventBackUpSeen();
+            } else 
+            if (prev_ndr == neighbor->ip ^ neighbor->ndr == neighbor->ip) {
+                //   former declare dr   ^  now declare dr
+                interface->eventNeighborChange();
+            }
+            /* == about BDR == */
+            if (neighbor->nbdr == neighbor->ip &&
+                interface->state == InterfaceState::S_WAITING
+                ) {
+                interface->eventBackUpSeen(); 
+            } else
+            if (prev_nbdr == neighbor->ip ^ neighbor->nbdr == neighbor->ip) {
+                //   former declare bdr   ^  now declare bdr
+                interface->eventNeighborChange();
             }
         }
-
+        else
         if (ospf_header->type == T_DD) {
         #ifdef DEBUG
             printf("[Thread]RecvPacket: DD packet\n");
         #endif
             OSPFDD* ospf_dd = (OSPFDD*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
+            Neighbor* neighbor = interface->getNeighbor(src_ip);
+            
+            bool is_accepted = false;
+            bool is_dup = false;
+            uint32_t seq_num = ntohl(ospf_dd->sequence_number);
+            if (neighbor->last_dd_seq_num == seq_num) {
+                is_dup = true;
+            #ifdef DEBUG
+                printf("[Thread]RecvPacket: DD packet duplicated\n");
+            #endif
+            } else {
+                neighbor->last_dd_seq_num = seq_num;
+            }
 
+            /* Dealing DD depending on neighbor's state */
+            dd_switch:
+            switch (neighbor->state) {
+                case NeighborState::S_INIT: {
+                    neighbor->event2WayReceived();
+                    goto dd_switch; // depend on the result of the event
+                    break;
+                }
+                case NeighborState::S_EXSTART: {
+                    if (ospf_dd->b_M && ospf_dd->b_I && ospf_dd->b_MS
+                        && neighbor->id > myconfigs::router_id) {
+                        /* confirm neighbor is master */
+                        neighbor->is_master = true;
+                        neighbor->dd_seq_num = seq_num;
+                        seq_num += 1;
+                        // TODO? set b_M to 0 in ack DD
+                    } else
+                    if (!ospf_dd->b_I && !ospf_dd->b_MS
+                        && ospf_dd->sequence_number == seq_num
+                        && neighbor->id < myconfigs::router_id) {
+                        /* confirm neighbor is slave */
+                        neighbor->is_master = false;
+                    } else {
+                        /* ignore the packet */
+                        continue; 
+                    }
+                    neighbor->eventNegotiationDone();
+                    break;
+                }
+                case NeighborState::S_EXCHANGE: {
+
+                    break;
+                }
+            }
         }
     }
 #undef RECV_LEN

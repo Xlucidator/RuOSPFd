@@ -62,6 +62,7 @@ public:
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
     void event1WayReceived();
+    void eventNegotiationDone();
 };
 
 

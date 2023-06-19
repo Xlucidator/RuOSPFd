@@ -56,8 +56,17 @@ void Neighbor::event2WayReceived() {
 
 void Neighbor::event1WayReceived() {
     printf("Neighbor %d received 1WayReceived ", this->id);
-    if (state == NeighborState::S_2WAY) { // TODO: above 2WAY
+    if (state >= NeighborState::S_2WAY) { // above 2WAY
         state = NeighborState::S_INIT;
         printf("and its state from 2-WAY -> INIT.\n");
+    }
+}
+
+void Neighbor::eventNegotiationDone() {
+    printf("Neighbor %d received 1WayReceived ", this->id);
+    if (state == NeighborState::S_EXSTART) {
+        state = NeighborState::S_EXCHANGE;
+        printf("and its state from EXSTART -> EXCHANGE.\n");
+        // TODO: summary list
     }
 }
