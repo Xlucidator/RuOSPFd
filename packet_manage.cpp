@@ -296,9 +296,52 @@ void* threadRecvPacket(void *intf) {
                     break;
                 }
                 case NeighborState::S_EXCHANGE: {
-
+                    if (is_dup) {
+                        if (neighbor->is_master) {
+                            // neighbor is master -> host interface is slave
+                            sendPackets(neighbor->last_dd_packet, neighbor->last_dd_len, T_DD, neighbor->ip, neighbor->host_interface); 
+                        }
+                        continue; // ignore the packet
+                    }
+                    if (ospf_dd->b_I || (ospf_dd->b_MS ^ neighbor->is_master)) {
+                        neighbor->eventSeqNumberMismatch(); // TODO
+                        continue;
+                    }
+                    if ((neighbor->is_master && seq_num == neighbor->dd_seq_num + 1) &&
+                        (!neighbor->is_master && seq_num == neighbor->dd_seq_num)) {
+                        is_accepted = true;
+                    } else {
+                        neighbor->eventSeqNumberMismatch();
+                        continue;
+                    }
                     break;
                 }
+                case NeighborState::S_LOADING:
+                case NeighborState::S_FULL: {
+                    /* finish dd exchange */
+                    // only deal with duplicate or mismatch
+                    if (is_dup) {
+                        if (neighbor->is_master) {
+                            // neighbor is master -> host interface is slave
+                            sendPackets(neighbor->last_dd_packet, neighbor->last_dd_len, T_DD, neighbor->ip, neighbor->host_interface); 
+                        }
+                        continue; // ignore the packet
+                    }
+                    if (ospf_dd->b_I || (ospf_dd->b_MS ^ neighbor->is_master)) {
+                        neighbor->eventSeqNumberMismatch(); // TODO
+                        continue;
+                    }
+                    break;
+                }
+            }
+
+            if (is_accepted) {
+                /* Reply to DD packet received */
+
+
+                OSPFDD dd_ack;
+                dd_ack.b_MS = ~ospf_dd->b_MS;
+                
             }
         }
     }

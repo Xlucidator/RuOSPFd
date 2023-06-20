@@ -7,7 +7,7 @@ Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     is_master = false;
     dd_seq_num = 0;
     last_dd_seq_num = 0;
-    last_dd_seq_len = 0;
+    last_dd_len = 0;
     priority = 1;
     host_interface = intf;
 }
@@ -69,4 +69,8 @@ void Neighbor::eventNegotiationDone() {
         printf("and its state from EXSTART -> EXCHANGE.\n");
         // TODO: summary list
     }
+}
+
+void Neighbor::eventSeqNumberMismatch() {
+    printf("Neighbor %d received SeqNumberMismatch ", this->id);
 }

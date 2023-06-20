@@ -2,6 +2,7 @@
 #define OSPF_PACKET_H
 
 #include <stdint.h>
+#include <vector>
 
 #define IPPROTO_OSPF    (89)
 
@@ -35,7 +36,6 @@ struct OSPFHeader {
 
 /* Packet Data */
 struct OSPFHello {
-    /* struct OSPFHeader header; */
     uint32_t    network_mask;
     uint16_t    hello_interval;
     uint8_t     options;
@@ -66,9 +66,59 @@ struct OSPFLSU {
     uint32_t    num;
 };
 
+struct OSPFLSAck {
+
+};
+
 /* LSA related */
+#define LSAHDR_LEN      (sizeof(LSAHeader))
 
+/* LSA Header */
+struct LSAHeader {
+    uint16_t    ls_age;
+    uint8_t     options;
+    uint8_t     ls_type;
+    uint32_t    link_state_id;
+    uint32_t    advertising_router;
+    uint32_t    ls_sequence_number;
+    uint16_t    ls_checksum;
+    uint16_t    length;
+};
 
+/* LSA Data */
+struct LSARouterLink {
+    uint32_t    link_id;
+    uint32_t    link_data;
+    uint8_t     type;
+    uint8_t     tos_num;    // we assume 0 for convenience
+    uint16_t    metric;
+    /* each tos */
+};
+
+struct LSARouter {
+    LSAHeader   lsa_header;
+    /* data part */
+    uint8_t     zero1 : 5;
+    uint8_t     b_V : 1;
+    uint8_t     b_E : 1;
+    uint8_t     b_B : 1;
+    uint8_t     zero2 = 0;
+    uint16_t    link_num;
+    std::vector<LSARouterLink> links;
+
+    char* toRouterLSA();
+    size_t size();
+};
+
+struct LSANetwork {
+    LSAHeader   lsa_header;
+    /* data part */
+    uint32_t    network_mask;
+    std::vector<uint32_t> attached_routers;
+
+    char* toNetworkLSA();
+    size_t size();
+};
 
 #endif // OSPF_PACKET_H
 

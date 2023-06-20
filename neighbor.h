@@ -41,8 +41,8 @@ public:
 
     /* last received DD packet from the neighbor */
     uint32_t    last_dd_seq_num;
-    uint32_t    last_dd_seq_len;
-    uint8_t     last_dd_packet[1024];
+    uint32_t    last_dd_len;
+    char        last_dd_packet[1024];
 
     /* neighbor details */
     uint32_t    id;  
@@ -63,6 +63,7 @@ public:
     void event2WayReceived();
     void event1WayReceived();
     void eventNegotiationDone();
+    void eventSeqNumberMismatch();
 };
 
 
