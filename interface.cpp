@@ -14,6 +14,12 @@ bool compareNeighbor(Neighbor* a, Neighbor* b) {
     }
 }
 
+void* waitTimer(void* intf) {
+    Interface* interface = (Interface*)intf;
+    sleep(40);  // time not sure
+    interface->eventWaitTimer();
+}
+
 Neighbor* Interface::getNeighbor(in_addr_t ip) {
     for (auto& neighbor: neighbor_list) {
         if (neighbor->ip == ip) {
@@ -115,6 +121,37 @@ void Interface::electDesignedRouter() {
 #endif
 }
 
+
+void Interface::eventInterfaceUp() {
+    printf("Interface %d received BackUpSeen ", this->ip);
+    if (state == InterfaceState::S_DOWN) {
+        // TODO: init thread packet retransmitter
+        // TODO: init thread timer
+
+        state = InterfaceState::S_WAITING;
+        printf("and its state from DOWN -> WAITING.\n");
+    }
+}
+
+void Interface::eventWaitTimer() {
+    printf("Interface %d received WaitTimer ", this->ip);
+    if (state == InterfaceState::S_WAITING) {
+        electDesignedRouter();
+        if (ip == dr) {
+            state = InterfaceState::S_DR;
+            printf("and its state from WAITING -> DR.\n");
+        } else if (ip == bdr) {
+            state = InterfaceState::S_BACKUP;
+            printf("and its state from WAITING -> BACKUP.\n");
+        } else {
+            state = InterfaceState::S_DROTHER;
+            printf("and its state from WAITING -> DROTHER.\n");
+        }
+
+        // TODO: generate Router LSA
+    }
+}
+
 void Interface::eventBackUpSeen() {
     printf("Interface %d received BackUpSeen ", this->ip);
     if (state == InterfaceState::S_WAITING) {
@@ -152,7 +189,7 @@ void Interface::eventNeighborChange() {
             state = InterfaceState::S_DROTHER;
             printf("and its state from XX -> DROTHER.\n");
         }
-    
+
         // TODO: generate Router LSA
     }
 }

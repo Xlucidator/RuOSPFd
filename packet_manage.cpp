@@ -337,7 +337,21 @@ void* threadRecvPacket(void *intf) {
 
             if (is_accepted) {
                 /* Reply to DD packet received */
+                LSAHeader* lsa_header_rcv = (LSAHeader*)(packet_rcv + IPHDR_LEN + OSPF_DD_LEN);
+                LSAHeader* lsa_header_end = (LSAHeader*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
+                while (lsa_header_rcv != lsa_header_end) {
+                    LSAHeader lsa_header;
+                    lsa_header.advertising_router = ntohl(lsa_header_rcv->advertising_router);
+                    lsa_header.link_state_id = ntohl(lsa_header_rcv->link_state_id);
+                    lsa_header.ls_sequence_number = ntohl(lsa_header_rcv->ls_sequence_number);
+                    lsa_header.ls_type = lsa_header_rcv->ls_type;
 
+                    if (lsa_header.ls_type == 1) {
+                        
+                    }
+
+                    lsa_header_rcv += 1;
+                }
 
                 OSPFDD dd_ack;
                 dd_ack.b_MS = ~ospf_dd->b_MS;

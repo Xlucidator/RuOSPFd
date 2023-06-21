@@ -10,8 +10,8 @@
 #define IPHDR_SRCIP     (12)
 
 #define OSPFHDR_LEN     (sizeof(OSPFHeader))
-#define OSPF_HELLO_LEN  (OSPFHDR_LEN + sizeof(OSPFHello))
-
+#define OSPF_HELLO_LEN  (OSPFHDR_LEN + sizeof(OSPFHello))   // exclude attached
+#define OSPF_DD_LEN     (OSPFHDR_LEN + sizeof(OSPFDD))      // exclude attached
 
 enum OSPFType: uint8_t {
     T_HELLO = 1,
@@ -73,6 +73,13 @@ struct OSPFLSAck {
 /* LSA related */
 #define LSAHDR_LEN      (sizeof(LSAHeader))
 
+enum LinkType : uint8_t {
+    L_P2P = 1,
+    L_TRANSIT,
+    L_STUB,
+    L_VIRTUAL,
+};
+
 /* LSA Header */
 struct LSAHeader {
     uint16_t    ls_age;
@@ -83,6 +90,8 @@ struct LSAHeader {
     uint32_t    ls_sequence_number;
     uint16_t    ls_checksum;
     uint16_t    length;
+
+    LSAHeader();
 };
 
 /* LSA Data */
@@ -99,13 +108,14 @@ struct LSARouter {
     LSAHeader   lsa_header;
     /* data part */
     uint8_t     zero1 : 5;
-    uint8_t     b_V : 1;
-    uint8_t     b_E : 1;
-    uint8_t     b_B : 1;
+    uint8_t     b_V : 1;    // Virtual : is virtual channel
+    uint8_t     b_E : 1;    // External: is ASBR
+    uint8_t     b_B : 1;    // Board   : is ABR
     uint8_t     zero2 = 0;
     uint16_t    link_num;
     std::vector<LSARouterLink> links;
 
+    LSARouter();
     char* toRouterLSA();
     size_t size();
 };

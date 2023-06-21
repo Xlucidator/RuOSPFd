@@ -33,6 +33,8 @@ enum struct InterfaceEvent : uint8_t {
     E_INTERFACEDOWN,
 };
 
+void* waitTimer(void* intf);
+
 class Interface {
 public:
     NetworkType    type  = NetworkType::T_P2P;
