@@ -58,6 +58,7 @@ public:
     std::list<Neighbor*> neighbor_list;
     
     Interface()=default;
+    ~Interface();
     Neighbor* getNeighbor(in_addr_t ip);
     Neighbor* addNeighbor(in_addr_t ip);
     /* event */

@@ -68,6 +68,8 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
         printf("SendPacket: send success\n");
     }
 #endif
+
+    free(packet);
 }
 
 void* threadSendHelloPackets(void* intf) {
@@ -134,8 +136,10 @@ void* threadSendHelloPackets(void* intf) {
             printf("[Thread]SendHelloPacket: send success\n");
         }
     #endif
-        sleep(10);
+        sleep(interface->hello_intervel);
     }
+
+    free(packet);
 }
 
 void* threadSendEmptyDDPackets(void* nbr) {
@@ -359,5 +363,7 @@ void* threadRecvPacket(void *intf) {
             }
         }
     }
+
+    free(packet_rcv);
 #undef RECV_LEN
 }

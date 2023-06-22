@@ -82,11 +82,11 @@ enum LinkType : uint8_t {
 
 /* LSA Header */
 struct LSAHeader {
-    uint16_t    ls_age;
-    uint8_t     options;
-    uint8_t     ls_type;
-    uint32_t    link_state_id;
-    uint32_t    advertising_router;
+    uint16_t    ls_age;     // init
+    uint8_t     options;    // init
+    uint8_t     ls_type;            // assign
+    uint32_t    link_state_id;      // assign
+    uint32_t    advertising_router; // assign
     uint32_t    ls_sequence_number;
     uint16_t    ls_checksum;
     uint16_t    length;
@@ -102,15 +102,17 @@ struct LSARouterLink {
     uint8_t     tos_num;    // we assume 0 for convenience
     uint16_t    metric;
     /* each tos */
+
+    bool operator==(const LSARouterLink& other);
 };
 
 struct LSARouter {
     LSAHeader   lsa_header;
     /* data part */
     uint8_t     zero1 : 5;
-    uint8_t     b_V : 1;    // Virtual : is virtual channel
-    uint8_t     b_E : 1;    // External: is ASBR
-    uint8_t     b_B : 1;    // Board   : is ABR
+        uint8_t     b_V : 1;    // Virtual : is virtual channel
+        uint8_t     b_E : 1;    // External: is ASBR
+        uint8_t     b_B : 1;    // Board   : is ABR
     uint8_t     zero2 = 0;
     uint16_t    link_num;
     std::vector<LSARouterLink> links;
@@ -118,14 +120,16 @@ struct LSARouter {
     LSARouter();
     char* toRouterLSA();
     size_t size();
+    bool operator==(const LSARouter& other);
 };
 
 struct LSANetwork {
     LSAHeader   lsa_header;
     /* data part */
-    uint32_t    network_mask;
-    std::vector<uint32_t> attached_routers;
+    uint32_t    network_mask;   // init
+    std::vector<uint32_t> attached_routers; // assign: ip list
 
+    LSANetwork();
     char* toNetworkLSA();
     size_t size();
 };

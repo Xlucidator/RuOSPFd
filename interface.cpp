@@ -20,6 +20,13 @@ void* waitTimer(void* intf) {
     interface->eventWaitTimer();
 }
 
+
+Interface::~Interface() {
+    for (auto& neighbor: neighbor_list) {
+        delete neighbor;
+    }
+}
+
 Neighbor* Interface::getNeighbor(in_addr_t ip) {
     for (auto& neighbor: neighbor_list) {
         if (neighbor->ip == ip) {
@@ -125,8 +132,13 @@ void Interface::electDesignedRouter() {
 void Interface::eventInterfaceUp() {
     printf("Interface %d received BackUpSeen ", this->ip);
     if (state == InterfaceState::S_DOWN) {
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+        pthread_t timer_thread;
         // TODO: init thread packet retransmitter
-        // TODO: init thread timer
+        pthread_create(&timer_thread, &attr, waitTimer, this);
 
         state = InterfaceState::S_WAITING;
         printf("and its state from DOWN -> WAITING.\n");

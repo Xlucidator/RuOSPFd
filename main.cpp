@@ -2,10 +2,13 @@
 
 #include "interface.h"
 #include "packet_manage.h"
+#include "lsdb.h"
 
 #include <pthread.h>
 
 bool start_ospfd();
+
+LSDB lsdb;
 
 int main(int argc, char** argv) {
     // start_ospfd();

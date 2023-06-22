@@ -12,10 +12,16 @@ public:
     std::vector<LSARouter*> router_lsas;
     pthread_mutex_t router_lock;
 
-    std::vector<LSANetwork> network_lsas;
+    std::vector<LSANetwork*> network_lsas;
     pthread_mutex_t network_lock;
 
     LSDB();
+    ~LSDB();
+    LSARouter* getRouterLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
+    LSARouter* getRouterLSA(uint32_t link_state_id);
 };
+
+
+extern LSDB lsdb;
 
 #endif // LSDB_H
