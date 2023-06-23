@@ -48,7 +48,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     ospf_header->type = type;
     ospf_header->packet_length = htons(packet_len);
     ospf_header->router_id = htonl(myconfigs::router_id);
-    ospf_header->area_id   = htonl(myconfigs::area_id);
+    ospf_header->area_id   = htonl(interface->area_id);
     ospf_header->autype = 0;
     ospf_header->authentication[0] = 0;
     ospf_header->authentication[1] = 0;
@@ -104,7 +104,7 @@ void* threadSendHelloPackets(void* intf) {
         ospf_header->type = 1; // Hello Type
         ospf_header->packet_length = htons(packet_real_len);
         ospf_header->router_id = htonl(myconfigs::router_id);
-        ospf_header->area_id = htonl(myconfigs::area_id);
+        ospf_header->area_id = htonl(interface->area_id);
         ospf_header->autype = 0;
         ospf_header->authentication[0] = 0;
         ospf_header->authentication[1] = 0;
@@ -158,8 +158,10 @@ void* threadSendEmptyDDPackets(void* nbr) {
         ospf_dd.b_I = ospf_dd.b_M = ospf_dd.b_MS = 1;
 
         sendPackets((char *)&ospf_dd, sizeof(ospf_dd), T_DD, neighbor->ip, neighbor->host_interface);
+    #ifdef DEBUG
         printf("[Thread]SendEmptyDDPacket: send success\n");
-        sleep(30);   // Retransmit RxmtInterval
+    #endif
+        sleep(5);   // TODO: assure the time interval
     }
     
 }
@@ -235,7 +237,7 @@ void* threadRecvPacket(void *intf) {
                 ) {
                 interface->eventBackUpSeen();
             } else 
-            if (prev_ndr == neighbor->ip ^ neighbor->ndr == neighbor->ip) {
+            if ((prev_ndr == neighbor->ip) ^ (neighbor->ndr == neighbor->ip)) {
                 //   former declare dr   ^  now declare dr
                 interface->eventNeighborChange();
             }
@@ -245,7 +247,7 @@ void* threadRecvPacket(void *intf) {
                 ) {
                 interface->eventBackUpSeen(); 
             } else
-            if (prev_nbdr == neighbor->ip ^ neighbor->nbdr == neighbor->ip) {
+            if ((prev_nbdr == neighbor->ip) ^ (neighbor->nbdr == neighbor->ip)) {
                 //   former declare bdr   ^  now declare bdr
                 interface->eventNeighborChange();
             }
@@ -337,6 +339,7 @@ void* threadRecvPacket(void *intf) {
                     }
                     break;
                 }
+                default: ;
             }
 
             if (is_accepted) {
@@ -350,7 +353,9 @@ void* threadRecvPacket(void *intf) {
                     lsa_header.ls_sequence_number = ntohl(lsa_header_rcv->ls_sequence_number);
                     lsa_header.ls_type = lsa_header_rcv->ls_type;
 
-                    if (lsa_header.ls_type == 1) {
+                    if (lsa_header.ls_type == LSA_ROUTER) {
+                        
+                    } else if (lsa_header.ls_type == LSA_NETWORK) {
                         
                     }
 

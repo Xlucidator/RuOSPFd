@@ -1,5 +1,7 @@
 #include "common.h"
 #include "interface.h"
+#include "lsdb.h"
+#include "lsa_manage.h"
 
 #include <list>
 #include <vector>
@@ -115,7 +117,7 @@ void Interface::electDesignedRouter() {
 
     /* detect changes : Interface became DR now */
     if (dr->ip == this->ip && this->dr != this->ip) {
-        // TODO: generate Network LSA
+        onGeneratingNetworkLSA(this);
     }
 
     this->dr = dr->ip;
@@ -160,7 +162,7 @@ void Interface::eventWaitTimer() {
             printf("and its state from WAITING -> DROTHER.\n");
         }
 
-        // TODO: generate Router LSA
+        onGeneratingRouterLSA();
     }
 }
 
@@ -179,7 +181,7 @@ void Interface::eventBackUpSeen() {
             printf("and its state from WAITING -> DROTHER.\n");
         }
 
-        // TODO: generate Router LSA
+        onGeneratingRouterLSA();
     }
 }
 
@@ -202,6 +204,6 @@ void Interface::eventNeighborChange() {
             printf("and its state from XX -> DROTHER.\n");
         }
 
-        // TODO: generate Router LSA
+        onGeneratingRouterLSA();
     }
 }

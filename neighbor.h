@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include "ospf_packet.h"
 
 enum struct NeighborState : uint8_t {
     S_DOWN = 0,
@@ -54,8 +56,9 @@ public:
 
     /* LSA information */
     // TODO: link state retransmission list
-    // TODO: database summary list
-    // TODO: link state request list
+    std::list<LSAHeader> db_summary_list;
+    std::list<LSAHeader> link_state_req_list;
+    pthread_t empty_dd_send_thread; // for negotiation of master/slave
 
     Neighbor(in_addr_t ip, Interface* intf);
 
@@ -64,6 +67,9 @@ public:
     void event1WayReceived();
     void eventNegotiationDone();
     void eventSeqNumberMismatch();
+
+private:
+    void initDBSummaryList();
 };
 
 

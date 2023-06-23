@@ -18,13 +18,12 @@ int main(int argc, char** argv) {
     interface1.ip = ntohl(inet_addr("192.168.75.128")); // TODO: read nic for addr
     myconfigs::interfaces.push_back(&interface1);
 
+    pthread_attr_init(&myconfigs::thread_attr);
+    pthread_attr_setdetachstate(&myconfigs::thread_attr, PTHREAD_CREATE_DETACHED);
+
     pthread_create(&hello_sender_thread, NULL, threadSendHelloPackets, &interface1);
 
     pthread_join(hello_sender_thread, NULL);
-
-    while (true) {
-        sleep(100);
-    }
     return 0;
 }
 

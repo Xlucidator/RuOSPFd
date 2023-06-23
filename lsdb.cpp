@@ -34,3 +34,22 @@ LSARouter* LSDB::getRouterLSA(uint32_t link_state_id) {
     }
     return nullptr;
 }
+
+LSANetwork* LSDB::getNetworkLSA(uint32_t link_state_id, uint32_t advertise_rtr_id) {
+    for (auto& p_lsa: network_lsas) {
+        if (p_lsa->lsa_header.link_state_id == link_state_id &&
+            p_lsa->lsa_header.advertising_router == advertise_rtr_id) {
+            return p_lsa;
+        }
+    }
+    return nullptr;
+}
+
+LSANetwork* LSDB::getNetworkLSA(uint32_t link_state_id) {
+    for (auto& p_lsa: network_lsas) {
+        if (p_lsa->lsa_header.link_state_id == link_state_id) {
+            return p_lsa;
+        }
+    }
+    return nullptr;
+}

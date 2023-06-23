@@ -1,5 +1,7 @@
 #include "common.h"
 #include "interface.h"
+#include "lsdb.h"
+#include "packet_manage.h"
 
 
 Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
@@ -10,6 +12,17 @@ Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     last_dd_len = 0;
     priority = 1;
     host_interface = intf;
+}
+
+void Neighbor::initDBSummaryList() {
+    pthread_mutex_lock(&lsdb.router_lock);
+
+    for (auto& p_lsa: lsdb.router_lsas) 
+        db_summary_list.push_back(p_lsa->lsa_header);
+    for (auto& p_lsa: lsdb.network_lsas)
+        db_summary_list.push_back(p_lsa->lsa_header);
+
+    pthread_mutex_unlock(&lsdb.router_lock);
 }
 
 void Neighbor::eventHelloReceived() {
@@ -38,16 +51,17 @@ void Neighbor::event2WayReceived() {
                     printf("and its state from INIT -> 2-WAY.\n");
                     break;
                 }
+                // let it fall through 
             }
 
             default: {
                 /* forms adjacency */
                 state = NeighborState::S_EXSTART;
                 printf("and its state from INIT -> EXSTART.\n");
-                /* start to send DD packet */
+                /* start to send DD empty packet: prepare master/slave */
                 dd_seq_num = 0;
                 is_master = true;
-                // TODO: send DD pakcet
+                pthread_create(&empty_dd_send_thread, &myconfigs::thread_attr, threadSendEmptyDDPackets, (void*)this);
                 break;
             }
         }
@@ -67,7 +81,7 @@ void Neighbor::eventNegotiationDone() {
     if (state == NeighborState::S_EXSTART) {
         state = NeighborState::S_EXCHANGE;
         printf("and its state from EXSTART -> EXCHANGE.\n");
-        // TODO: summary list
+        initDBSummaryList();
     }
 }
 

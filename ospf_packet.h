@@ -73,6 +73,14 @@ struct OSPFLSAck {
 /* LSA related */
 #define LSAHDR_LEN      (sizeof(LSAHeader))
 
+enum LSAType : uint8_t {
+    LSA_ROUTER = 1,
+    LSA_NETWORK,
+    LSA_SUMNET,
+    LSA_SUMASB,
+    LSA_ASEXTERNAL,
+};
+
 enum LinkType : uint8_t {
     L_P2P = 1,
     L_TRANSIT,
@@ -132,6 +140,7 @@ struct LSANetwork {
     LSANetwork();
     char* toNetworkLSA();
     size_t size();
+    bool operator==(const LSANetwork& other);
 };
 
 #endif // OSPF_PACKET_H

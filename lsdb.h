@@ -19,6 +19,8 @@ public:
     ~LSDB();
     LSARouter* getRouterLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
     LSARouter* getRouterLSA(uint32_t link_state_id);
+    LSANetwork* getNetworkLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
+    LSANetwork* getNetworkLSA(uint32_t link_state_id);
 };
 
 

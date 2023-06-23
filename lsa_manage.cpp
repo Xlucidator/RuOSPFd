@@ -1,5 +1,5 @@
 #include "lsa_manage.h"
-#include "ospf_packet.h"
+
 #include "lsdb.h"
 #include "interface.h"
 #include "setting.h"
@@ -18,9 +18,20 @@ void onGeneratingRouterLSA() {
         lsdb.router_lsas.push_back(router_lsa);
         pthread_mutex_unlock(&lsdb.router_lock);
     }
-    // TODO: consider -- so why not use <set>
+    // consider -- so why not use <set>
 }
 
+void onGeneratingNetworkLSA(Interface* interface) {
+    LSANetwork* network_lsa = genNetworkLSA(interface);
+
+    LSANetwork* lsa_find = lsdb.getNetworkLSA(myconfigs::router_id, interface->ip);
+    if (lsa_find == nullptr || !(*lsa_find == *network_lsa)) {
+        /* lsdb do not contain this lsa: add the lsa */
+        pthread_mutex_lock(&lsdb.network_lock);
+        lsdb.network_lsas.push_back(network_lsa);
+        pthread_mutex_unlock(&lsdb.network_lock);
+    }
+}
 
 LSARouter* genRouterLSA(std::vector<Interface*>& sel_interfaces) {
     LSARouter* router_lsa = new LSARouter();
