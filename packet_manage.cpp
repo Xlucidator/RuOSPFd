@@ -1,5 +1,5 @@
 #include "ospf_packet.h"
-
+#include "lsdb.h"
 #include "interface.h"
 #include "common.h"
 
@@ -352,18 +352,40 @@ void* threadRecvPacket(void *intf) {
                     lsa_header.link_state_id = ntohl(lsa_header_rcv->link_state_id);
                     lsa_header.ls_sequence_number = ntohl(lsa_header_rcv->ls_sequence_number);
                     lsa_header.ls_type = lsa_header_rcv->ls_type;
-
+                    /* add to req_list if lsdb do not have the lsa */
                     if (lsa_header.ls_type == LSA_ROUTER) {
-                        
+                        if (lsdb.getRouterLSA(lsa_header.link_state_id, lsa_header.advertising_router) == nullptr) {
+                            neighbor->link_state_req_list.push_back(lsa_header);
+                        }
                     } else if (lsa_header.ls_type == LSA_NETWORK) {
-                        
+                        if (lsdb.getNetworkLSA(lsa_header.link_state_id, lsa_header.advertising_router) == nullptr) {
+                            neighbor->link_state_req_list.push_back(lsa_header);
+                        }
                     }
 
                     lsa_header_rcv += 1;
                 }
 
-                OSPFDD dd_ack;
-                dd_ack.b_MS = ~ospf_dd->b_MS;
+                char* data_ack = (char*)malloc(1024);
+                OSPFDD* dd_ack = (OSPFDD*)data_ack;
+                memset(&dd_ack, 0, sizeof(OSPFDD));
+                dd_ack->options = 0x02;
+                dd_ack->interface_MTU = htons(neighbor->host_interface->mtu);
+                /* operation is different between master and slave */
+                if (neighbor->is_master) {
+                    /* interface is slave */
+                    neighbor->dd_seq_num = seq_num;
+                    if (ospf_dd->b_M == 0) { // recieve M bit = 0, set self with 0
+                        dd_ack->b_M = 0;
+                    }
+                    dd_ack->sequence_number = htonl(seq_num);
+
+                    
+
+                } else {
+                    /* interface is master */
+
+                }
                 
             }
         }
