@@ -1,4 +1,5 @@
 #include "ospf_packet.h"
+#include <netinet/in.h>
 
 /* ============ LSA Header ============ */
 LSAHeader::LSAHeader() {
@@ -7,6 +8,23 @@ LSAHeader::LSAHeader() {
     ls_sequence_number = 0x80000000; // init
 }
 
+void LSAHeader::host2net() {
+    ls_age = htons(ls_age);
+    link_state_id = htons(link_state_id);
+    advertising_router = htons(advertising_router);
+    ls_checksum = htons(ls_checksum);
+    length = htons(length);
+    ls_sequence_number = htonl(ls_sequence_number);
+}
+
+void LSAHeader::net2host() {
+    ls_age = ntohs(ls_age);
+    link_state_id = ntohs(link_state_id);
+    advertising_router = ntohs(advertising_router);
+    ls_checksum = ntohs(ls_checksum);
+    length = ntohs(length);
+    ls_sequence_number = ntohl(ls_sequence_number);
+}
 
 /* ============ Router Link ============ */
 bool LSARouterLink::operator==(const LSARouterLink& other) {

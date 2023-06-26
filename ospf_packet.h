@@ -90,16 +90,18 @@ enum LinkType : uint8_t {
 
 /* LSA Header */
 struct LSAHeader {
-    uint16_t    ls_age;     // init
+    uint16_t    ls_age;     // init + in transition
     uint8_t     options;    // init
     uint8_t     ls_type;            // assign
-    uint32_t    link_state_id;      // assign
-    uint32_t    advertising_router; // assign
-    uint32_t    ls_sequence_number;
-    uint16_t    ls_checksum;
-    uint16_t    length;
+    uint32_t    link_state_id;      // assign + in transition
+    uint32_t    advertising_router; // assign + in transition
+    uint32_t    ls_sequence_number; // in transition
+    uint16_t    ls_checksum;        // in transition
+    uint16_t    length;             // in transition
 
     LSAHeader();
+    void host2net();    // be careful！ has no check before transition
+    void net2host();    // be careful！ has no check before transition
 };
 
 /* LSA Data */

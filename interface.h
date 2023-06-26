@@ -4,6 +4,7 @@
 #include <list>
 #include <stdint.h>
 #include "neighbor.h"
+#include "retransmitter.h"
 
 enum struct NetworkType : uint8_t {
     T_P2P = 1,
@@ -37,18 +38,19 @@ void* waitTimer(void* intf);
 
 class Interface {
 public:
-    NetworkType    type  = NetworkType::T_P2P;
+    NetworkType    type  = NetworkType::T_P2P;  // TODO: default broadcast in ensp
     InterfaceState state = InterfaceState::S_DOWN;
     in_addr_t   ip;
     uint32_t    mask = 0xffffff00;
     uint32_t    area_id = 0;
 
     uint32_t    hello_intervel = 10;
-    uint32_t    router_dead_interval = 40;
-    uint32_t    intf_trans_delay;
+    uint32_t    router_dead_interval = 40;  // 4 times of hello_intervel
+    uint32_t    rxmt_interval  = 5;
+    uint32_t    intf_trans_delay = 1;
     uint32_t    router_priority = 1;
 
-    // TODO: Timer
+    Retransmitter rxmter = Retransmitter(this);  // use for rxmt
 
     uint32_t    cost = 0;
     uint32_t    mtu = 1500;

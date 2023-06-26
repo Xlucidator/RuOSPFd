@@ -1,17 +1,23 @@
 #include "common.h"
-#include "interface.h"
+#include "interface.h"  // contains neighbor.h
 #include "lsdb.h"
 #include "packet_manage.h"
-
+#include "lsa_manage.h"
 
 Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     state = NeighborState::S_DOWN;
     is_master = false;
     dd_seq_num = 0;
     last_dd_seq_num = 0;
-    last_dd_len = 0;
+    last_dd_data_len = 0;
     priority = 1;
     host_interface = intf;
+}
+
+Neighbor::~Neighbor() {
+    // remour has it that deque will not release memory (doge)
+    link_state_req_list.shrink_to_fit();
+    db_summary_list.shrink_to_fit();
 }
 
 void Neighbor::initDBSummaryList() {
@@ -87,4 +93,22 @@ void Neighbor::eventNegotiationDone() {
 
 void Neighbor::eventSeqNumberMismatch() {
     printf("Neighbor %d received SeqNumberMismatch ", this->id);
+}
+
+void Neighbor::eventExchangeDone() {
+    printf("Neighbor %d received ExchangeDone ", this->id);
+    if (state == NeighborState::S_EXCHANGE) {
+        if (link_state_req_list.size() == 0) {
+            /* has all lsas: no need to request */
+            state = NeighborState::S_FULL;
+            printf("and its state from EXCHANGE -> FULL.\n");
+            if (host_interface->dr == host_interface->ip) {
+                onGeneratingNetworkLSA(host_interface);
+            }
+        } else {
+            state = NeighborState::S_LOADING;
+            printf("and its state from EXCHANGE -> LOADING.\n");
+            // TODO: start sending LSR packets
+        }
+    }
 }

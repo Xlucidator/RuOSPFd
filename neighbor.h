@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <deque>
+#include <map>
 #include "ospf_packet.h"
 
 enum struct NeighborState : uint8_t {
@@ -41,10 +43,12 @@ public:
     bool        is_master;
     uint32_t    dd_seq_num;
 
-    /* last received DD packet from the neighbor */
+    /* last received DD data (of packet) from the neighbor
+     *      [means]: host_interface last send, and only data oart of a dd packet for convenience
+     */
     uint32_t    last_dd_seq_num;
-    uint32_t    last_dd_len;
-    char        last_dd_packet[1024];
+    uint32_t    last_dd_data_len;
+    char        last_dd_data[1024];
 
     /* neighbor details */
     uint32_t    id;  
@@ -55,18 +59,21 @@ public:
     Interface*  host_interface;
 
     /* LSA information */
-    // TODO: link state retransmission list
-    std::list<LSAHeader> db_summary_list;
-    std::list<LSAHeader> link_state_req_list;
+    std::map<uint32_t, uint32_t> link_state_rxmt_map;  // {dd_seq_num:id}
+    std::deque<LSAHeader> db_summary_list;
+    std::deque<LSAHeader> link_state_req_list;
     pthread_t empty_dd_send_thread; // for negotiation of master/slave
+    pthread_t lsr_send_thread;
 
     Neighbor(in_addr_t ip, Interface* intf);
+    ~Neighbor();
 
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
     void event1WayReceived();
     void eventNegotiationDone();
     void eventSeqNumberMismatch();
+    void eventExchangeDone();
 
 private:
     void initDBSummaryList();

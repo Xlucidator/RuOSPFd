@@ -161,7 +161,7 @@ void* threadSendEmptyDDPackets(void* nbr) {
     #ifdef DEBUG
         printf("[Thread]SendEmptyDDPacket: send success\n");
     #endif
-        sleep(5);   // TODO: assure the time interval
+        sleep(neighbor->host_interface->rxmt_interval); // normally 5
     }
     
 }
@@ -305,7 +305,7 @@ void* threadRecvPacket(void *intf) {
                     if (is_dup) {
                         if (neighbor->is_master) {
                             // neighbor is master -> host interface is slave
-                            sendPackets(neighbor->last_dd_packet, neighbor->last_dd_len, T_DD, neighbor->ip, neighbor->host_interface); 
+                            sendPackets(neighbor->last_dd_data, neighbor->last_dd_data_len, T_DD, neighbor->ip, neighbor->host_interface); 
                         }
                         continue; // ignore the packet
                     }
@@ -329,7 +329,7 @@ void* threadRecvPacket(void *intf) {
                     if (is_dup) {
                         if (neighbor->is_master) {
                             // neighbor is master -> host interface is slave
-                            sendPackets(neighbor->last_dd_packet, neighbor->last_dd_len, T_DD, neighbor->ip, neighbor->host_interface); 
+                            sendPackets(neighbor->last_dd_data, neighbor->last_dd_data_len, T_DD, neighbor->ip, neighbor->host_interface); 
                         }
                         continue; // ignore the packet
                     }
@@ -343,7 +343,7 @@ void* threadRecvPacket(void *intf) {
             }
 
             if (is_accepted) {
-                /* Reply to DD packet received */
+                /* 1. Receive DD packet and update req_list */
                 LSAHeader* lsa_header_rcv = (LSAHeader*)(packet_rcv + IPHDR_LEN + OSPF_DD_LEN);
                 LSAHeader* lsa_header_end = (LSAHeader*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
                 while (lsa_header_rcv != lsa_header_end) {
@@ -366,28 +366,101 @@ void* threadRecvPacket(void *intf) {
                     lsa_header_rcv += 1;
                 }
 
+                /* 2. Reply to the DD packet received */
                 char* data_ack = (char*)malloc(1024);
+                size_t data_len = 0;
+
                 OSPFDD* dd_ack = (OSPFDD*)data_ack;
                 memset(&dd_ack, 0, sizeof(OSPFDD));
+                data_len += sizeof(OSPFDD);
                 dd_ack->options = 0x02;
                 dd_ack->interface_MTU = htons(neighbor->host_interface->mtu);
-                /* operation is different between master and slave */
+                dd_ack->b_MS = neighbor->is_master ? 0 : 1;
+                // operation is different between master and slave
                 if (neighbor->is_master) {
                     /* interface is slave */
                     neighbor->dd_seq_num = seq_num;
-                    if (ospf_dd->b_M == 0) { // recieve M bit = 0, set self with 0
-                        dd_ack->b_M = 0;
-                    }
                     dd_ack->sequence_number = htonl(seq_num);
-
-                    
-
+                    // add lsa_header
+                    LSAHeader* write_lsa_header = (LSAHeader*)(data_ack + sizeof(OSPFDD));
+                    int lsa_cnt = 0;
+                    while (neighbor->db_summary_list.size() > 0) {
+                        if (lsa_cnt >= 10) break;   // simply limit to 10 lsa (in fact may it depend on MTU, up to 100)
+                        
+                        LSAHeader& lsa_h = neighbor->db_summary_list.front();
+                        lsa_h.host2net();
+                        memcpy(write_lsa_header, &lsa_h, LSAHDR_LEN);
+                        
+                        write_lsa_header += 1;
+                        lsa_cnt += 1;
+                        data_len += LSAHDR_LEN;
+                        neighbor->db_summary_list.pop_front();
+                    }
+                    dd_ack->b_M = (neighbor->db_summary_list.size() == 0) ? 0 : 1;
+                    // send ack packet
+                    sendPackets(data_ack, data_len, T_DD, neighbor->ip, neighbor->host_interface);
+                    memcpy(neighbor->last_dd_data, data_ack, data_len);
+                    neighbor->last_dd_data_len = data_len;
+                    // evoke event if there's no more dd packet
+                    if (dd_ack->b_M == 0 && ospf_dd->b_M == 0) {
+                        neighbor->eventExchangeDone();
+                    }
+                    free(data_ack);
                 } else {
                     /* interface is master */
+                    // receive ack of last dd, stop rxmt of this packet
+                    if (neighbor->link_state_rxmt_map.count(neighbor->dd_seq_num) > 0) {
+                        // check for safety, although there's no need to check here
+                        interface->rxmter.delPacketData(neighbor->link_state_rxmt_map[neighbor->dd_seq_num]);
+                    }
+                    neighbor->dd_seq_num += 1;
 
+                    // evoke event if there's no more dd packet
+                    // [Attention]: Master would always evoke this event after Slave  
+                    if (neighbor->db_summary_list.size() == 0 && ospf_dd->b_M == 0) {
+                        neighbor->eventExchangeDone();
+                        free(data_ack);
+                        continue;
+                    }
+                    // add lsa_header
+                    LSAHeader* write_lsa_header = (LSAHeader*)(data_ack + sizeof(OSPFDD));
+                    int lsa_cnt = 0;
+                    while (neighbor->db_summary_list.size() > 0) {
+                        if (lsa_cnt >= 10) break;   // simply limit to 10 lsa (in fact may it depend on MTU, up to 100)
+
+                        LSAHeader& lsa_h = neighbor->db_summary_list.front();
+                        lsa_h.host2net();
+                        memcpy(write_lsa_header, &lsa_h, LSAHDR_LEN);
+
+                        write_lsa_header += 1;
+                        lsa_cnt += 1;
+                        data_len += LSAHDR_LEN;
+                        neighbor->db_summary_list.pop_front();
+                    }
+                    dd_ack->b_M = (neighbor->db_summary_list.size() == 0) ? 0 : 1;
+                    // send ack packet
+                    sendPackets(data_ack, data_len, T_DD, neighbor->ip, neighbor->host_interface);
+                    uint32_t pdata_id = interface->rxmter.addPacketData(
+                        PacketData(data_ack, data_len, T_DD, neighbor->ip, interface->rxmt_interval)
+                    );
+                    neighbor->link_state_rxmt_map[neighbor->dd_seq_num] = pdata_id;
                 }
                 
             }
+        }
+        else
+        if (ospf_header->type == T_LSR) {
+        #ifdef DEBUG
+            printf("[Thread]RecvPacket: LSR packet\n");
+        #endif
+
+        }
+        else
+        if (ospf_header->type == T_DD) {
+        #ifdef DEBUG
+            printf("[Thread]RecvPacket: LSAck packet\n");
+        #endif
+        
         }
     }
 
