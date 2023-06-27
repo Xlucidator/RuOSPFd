@@ -21,6 +21,8 @@ enum OSPFType: uint8_t {
     T_LSAck
 };
 
+uint16_t fletcher_checksum(const void* data, size_t len);
+
 /* Packet Header */
 struct OSPFHeader {
     uint8_t     version = 2;
@@ -44,6 +46,7 @@ struct OSPFHello {
     uint32_t    designated_router;       // DR
     uint32_t    backup_designated_router; // BDR
     uint32_t    neighbor;
+    /* attached : neighbors (router id) */
 };
 
 struct OSPFDD {
@@ -54,20 +57,24 @@ struct OSPFDD {
     uint8_t     b_I : 1;
     uint8_t     b_other: 5;
     uint32_t    sequence_number;
+    /* attached : lsa headers */
 };
 
 struct OSPFLSR {
     uint32_t    type;
     uint32_t    state_id;
     uint32_t    adverising_router;
+
+    void net2host();    // Attention: be careful, no check before transition
 };
 
 struct OSPFLSU {
     uint32_t    num;
+    /* attached : full lsa */
 };
 
 struct OSPFLSAck {
-
+    /* attached : lsa headers */
 };
 
 /* LSA related */
@@ -109,10 +116,12 @@ struct LSARouterLink {
     uint32_t    link_id;
     uint32_t    link_data;
     uint8_t     type;
-    uint8_t     tos_num;    // we assume 0 for convenience
+    uint8_t     tos_num = 0;    // we assume 0 for convenience
     uint16_t    metric;
     /* each tos */
 
+    LSARouterLink();
+    LSARouterLink(char* net_ptr);
     bool operator==(const LSARouterLink& other);
 };
 
@@ -128,7 +137,8 @@ struct LSARouter {
     std::vector<LSARouterLink> links;
 
     LSARouter();
-    char* toRouterLSA();
+    LSARouter(char* net_ptr);
+    char* toRouterLSA();  // [attention]: need to be del
     size_t size();
     bool operator==(const LSARouter& other);
 };
@@ -140,7 +150,8 @@ struct LSANetwork {
     std::vector<uint32_t> attached_routers; // assign: ip list
 
     LSANetwork();
-    char* toNetworkLSA();
+    LSANetwork(char* net_ptr);
+    char* toNetworkLSA(); // [attention]: need to be del
     size_t size();
     bool operator==(const LSANetwork& other);
 };

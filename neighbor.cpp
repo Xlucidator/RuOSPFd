@@ -93,6 +93,14 @@ void Neighbor::eventNegotiationDone() {
 
 void Neighbor::eventSeqNumberMismatch() {
     printf("Neighbor %d received SeqNumberMismatch ", this->id);
+    // TODO
+    if (state >= NeighborState::S_EXCHANGE) {
+        NeighborState prev_state = state;
+        // TODO: clear three list/deque/map
+        // init sending empty dd packet (M/I/MS = 1) again
+        state = NeighborState::S_EXSTART;
+        printf("and its state from XXX -> EXSTART.\n");
+    }
 }
 
 void Neighbor::eventExchangeDone() {
@@ -110,5 +118,17 @@ void Neighbor::eventExchangeDone() {
             printf("and its state from EXCHANGE -> LOADING.\n");
             // TODO: start sending LSR packets
         }
+    }
+}
+
+void Neighbor::evnetBadLSReq() {
+    printf("Neighbor %d received BadLSReq ", this->id);
+    // TODO: similar to event SeqNumberMismatch, need to negotiate a new adjacent relationship
+    if (state >= NeighborState::S_EXCHANGE) {
+        NeighborState prev_state = state;
+        // TODO: clear three list/deque/map
+        // init sending empty dd packet (M/I/MS = 1) again
+        state = NeighborState::S_EXSTART;
+        printf("and its state from XXX -> EXSTART.\n");
     }
 }

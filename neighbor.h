@@ -74,6 +74,7 @@ public:
     void eventNegotiationDone();
     void eventSeqNumberMismatch();
     void eventExchangeDone();
+    void evnetBadLSReq();
 
 private:
     void initDBSummaryList();

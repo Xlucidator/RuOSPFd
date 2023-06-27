@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <pthread.h>
 
-class LSDB {
+class LSDB { // TODO: LSA Aging
 public:
     std::vector<LSARouter*> router_lsas;
     pthread_mutex_t router_lock;
@@ -21,6 +21,8 @@ public:
     LSARouter* getRouterLSA(uint32_t link_state_id);
     LSANetwork* getNetworkLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
     LSANetwork* getNetworkLSA(uint32_t link_state_id);
+    void addLSA(char* tar_ptr); // for all types
+    void delLSA(uint32_t link_state_id, uint32_t advertise_rtr_id, uint8_t type);
 };
 
 

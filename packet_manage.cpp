@@ -3,7 +3,7 @@
 #include "interface.h"
 #include "common.h"
 
-uint16_t packet_checksum(const void* data, size_t len) {
+uint16_t crc_checksum(const void* data, size_t len) {
     uint32_t sum = 0;
     const uint16_t* ptr = static_cast<const uint16_t*>(data);
 
@@ -49,6 +49,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     ospf_header->packet_length = htons(packet_len);
     ospf_header->router_id = htonl(myconfigs::router_id);
     ospf_header->area_id   = htonl(interface->area_id);
+    ospf_header->checksum  = 0;
     ospf_header->autype = 0;
     ospf_header->authentication[0] = 0;
     ospf_header->authentication[1] = 0;
@@ -57,7 +58,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     memcpy(packet + OSPFHDR_LEN, ospf_data, data_len);
 
     // calculte checksum
-    ospf_header->checksum = packet_checksum(ospf_header, packet_len);
+    ospf_header->checksum = crc_checksum(ospf_header, packet_len);
 
     /* Send OSPF Packet */
     if (sendto(socket_fd, packet, packet_len, 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
@@ -105,6 +106,7 @@ void* threadSendHelloPackets(void* intf) {
         ospf_header->packet_length = htons(packet_real_len);
         ospf_header->router_id = htonl(myconfigs::router_id);
         ospf_header->area_id = htonl(interface->area_id);
+        ospf_header->checksum = 0;
         ospf_header->autype = 0;
         ospf_header->authentication[0] = 0;
         ospf_header->authentication[1] = 0;
@@ -125,7 +127,7 @@ void* threadSendHelloPackets(void* intf) {
             *ospf_attach++ = htonl(nbr->id);
         }
         // calculte checksum
-        ospf_header->checksum = packet_checksum(ospf_header, packet_real_len);
+        ospf_header->checksum = crc_checksum(ospf_header, packet_real_len);
 
         /* Send Packet */
         if (sendto(socket_fd, packet, packet_real_len, 0, (struct sockaddr*)&dst_sockaddr, sizeof(dst_sockaddr)) < 0) {
@@ -164,6 +166,11 @@ void* threadSendEmptyDDPackets(void* nbr) {
         sleep(neighbor->host_interface->rxmt_interval); // normally 5
     }
     
+}
+
+void* threadSendLSRPackets(void* nbr) {
+    Neighbor* neighbor = (Neighbor*)nbr;
+
 }
 
 void* threadRecvPacket(void *intf) {
@@ -453,15 +460,71 @@ void* threadRecvPacket(void *intf) {
         #ifdef DEBUG
             printf("[Thread]RecvPacket: LSR packet\n");
         #endif
+            OSPFLSR* lsr_rcv = (OSPFLSR*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
+            OSPFLSR* lsr_end = (OSPFLSR*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
+            Neighbor* neighbor = interface->getNeighbor(src_ip);
 
+            char* lsu_data_ack = (char*)malloc(2048); /* lsu_data_ack = lsu_body + lsu_attached */
+            // OSPFLSU body ： size
+            OSPFLSU* lsu_body = (OSPFLSU*)lsu_data_ack;
+            memset(lsu_body, 0, sizeof(OSPFLSU));
+            lsu_body->num = 0;   // redundent, just for consistency
+            // attached : lsa
+            char* lsu_attached = lsu_data_ack + sizeof(OSPFLSU);
+            int lsa_cnt = 0;
+            while (lsr_rcv != lsr_end) {
+                lsr_rcv->net2host();
+
+                if (lsr_rcv->type == LSA_ROUTER) {
+                    LSARouter* router_lsa = lsdb.getRouterLSA(lsr_rcv->state_id, lsr_rcv->adverising_router);
+                    if (router_lsa == nullptr) {
+                        neighbor->evnetBadLSReq();
+                        free(lsu_data_ack);
+                        goto after_dealing; // TODO: just an expedient
+                    } else {
+                        char* lsa_packet = router_lsa->toRouterLSA();
+                        memcpy(lsu_attached, lsa_packet, router_lsa->size());
+                        delete[] lsa_packet;   // release "new char[size()]" from toRouterLSA()
+                        lsu_attached += router_lsa->size();
+                    }
+                } else if (lsr_rcv->type == LSA_NETWORK) {
+                    LSANetwork* network_lsa = lsdb.getNetworkLSA(lsr_rcv->state_id, lsr_rcv->adverising_router);
+                    if (network_lsa == nullptr) {
+                        neighbor->evnetBadLSReq();
+                        free(lsu_data_ack);
+                        goto after_dealing; // TODO: just an expedient
+                    } else {
+                        char* lsa_packet = network_lsa->toNetworkLSA();
+                        memcpy(lsu_attached, lsa_packet, network_lsa->size());
+                        delete[] lsa_packet;
+                        lsu_attached += network_lsa->size();
+                    }
+                }
+
+                lsr_rcv += 1;
+                lsa_cnt += 1;
+            }
+            lsu_body->num = htonl(lsa_cnt);
+            sendPackets(lsu_data_ack,(lsu_attached - lsu_data_ack), T_LSU, src_ip, interface);
         }
         else
-        if (ospf_header->type == T_DD) {
+        if (ospf_header->type == T_LSU) {
         #ifdef DEBUG
-            printf("[Thread]RecvPacket: LSAck packet\n");
+            printf("[Thread]RecvPacket: LSU packet\n");
         #endif
+            OSPFLSU* ospf_lsu = (OSPFLSU*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
+            int lsa_num = ntohl(ospf_lsu->num);
         
+            char* lsa_ptr = (char*)(ospf_lsu) + sizeof(OSPFLSU); // +4
+            for (int i = 0; i < lsa_num; ++i) {
+                // receive lsa form ospf_lsu
+                LSAHeader* lsa_header = (LSAHeader*)lsa_ptr;
+
+                
+            }
         }
+
+        after_dealing:
     }
 
     free(packet_rcv);
