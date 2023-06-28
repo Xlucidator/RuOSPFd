@@ -45,7 +45,6 @@ struct OSPFHello {
     uint32_t    router_dead_interval;
     uint32_t    designated_router;       // DR
     uint32_t    backup_designated_router; // BDR
-    uint32_t    neighbor;
     /* attached : neighbors (router id) */
 };
 
