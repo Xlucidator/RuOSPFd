@@ -93,7 +93,6 @@ void Neighbor::eventNegotiationDone() {
 
 void Neighbor::eventSeqNumberMismatch() {
     printf("Neighbor %d received SeqNumberMismatch ", this->id);
-    // TODO
     if (state >= NeighborState::S_EXCHANGE) {
         NeighborState prev_state = state;
         // TODO: clear three list/deque/map
@@ -116,7 +115,7 @@ void Neighbor::eventExchangeDone() {
         } else {
             state = NeighborState::S_LOADING;
             printf("and its state from EXCHANGE -> LOADING.\n");
-            // TODO: start sending LSR packets
+            pthread_create(&lsr_send_thread, &myconfigs::thread_attr, threadSendLSRPackets, (void*)this);
         }
     }
 }

@@ -6,7 +6,7 @@ uint16_t fletcher_checksum(const void* data, size_t len) {
     const uint8_t* ptr = static_cast<const uint8_t*>(data);
     uint16_t sum1 = 0, sum2 = 0;
     
-    for (int i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         sum1 = (sum1 + ptr[i]) & 0xff;
         sum2 = (sum2 + sum1)   & 0xff;
     }

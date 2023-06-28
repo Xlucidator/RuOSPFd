@@ -50,7 +50,7 @@ public:
     uint32_t    intf_trans_delay = 1;
     uint32_t    router_priority = 1;
 
-    Retransmitter rxmter = Retransmitter(this);  // use for rxmt
+    Retransmitter rxmtter = Retransmitter(this);  // use for rxmt
 
     uint32_t    cost = 0;
     uint32_t    mtu = 1500;

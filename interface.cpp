@@ -111,8 +111,7 @@ void Interface::electDesignedRouter() {
         ((dr->ip  == this->ip) ^ (this->dr  == this->ip)) ||
         ((bdr->ip == this->ip) ^ (this->bdr == this->ip))
         ) {
-        // select again
-        // TODO
+        // TODO: select again
     }
 
     /* detect changes : Interface became DR now */
@@ -139,8 +138,9 @@ void Interface::eventInterfaceUp() {
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
         pthread_t timer_thread;
-        // TODO: init thread packet retransmitter
+        pthread_t rxmt_thread;
         pthread_create(&timer_thread, &attr, waitTimer, this);
+        pthread_create(&rxmt_thread, &attr, Retransmitter::run, (void*)&(this->rxmtter));
 
         state = InterfaceState::S_WAITING;
         printf("and its state from DOWN -> WAITING.\n");

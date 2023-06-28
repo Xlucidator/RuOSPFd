@@ -168,21 +168,53 @@ void* threadSendEmptyDDPackets(void* nbr) {
     
 }
 
+// TODO: in fact, we should add it to retransmitter and clear it in receiving LSAcks
 void* threadSendLSRPackets(void* nbr) {
     Neighbor* neighbor = (Neighbor*)nbr;
+    
+    char* lsr_packet = (char*)malloc(1024);
+    int cnt = 0;
+    // TODO: check number of link_state_req_list
+    OSPFLSR* lsr_data = (OSPFLSR*) lsr_packet;
+    for (auto& req_lsa_header: neighbor->link_state_req_list) {
+        lsr_data->state_id = htonl(req_lsa_header.link_state_id);
+        lsr_data->adverising_router = htonl(req_lsa_header.advertising_router);
+        lsr_data->type = htonl(req_lsa_header.ls_type);
 
+        lsr_data += 1;
+        cnt += 1;
+    }
+    sendPackets(lsr_packet, sizeof(OSPFLSR)*cnt, T_LSR, neighbor->ip, neighbor->host_interface);
+#ifdef DEBUG
+    printf("[Thread]SendLSRPacket: send success\n");
+#endif
+    neighbor->link_state_req_list.clear();
+    neighbor->link_state_req_list.shrink_to_fit();
 }
 
-void* threadRecvPacket(void *intf) {
+void* threadRecvPackets(void *intf) {
     Interface *interface = (Interface*) intf;
     int socket_fd;
     if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
         perror("[Thread]RecvPacket: socket_fd init");
     }
 
+    /* Bind sockets to certain Network Interface */
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strcpy(ifr.ifr_name, myconfigs::nic_name);
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0) {
+        perror("[Thread]RecvPacket: setsockopt - bind to device");
+    }
+
+    /* add to OSPF multicast */
+    struct ip_mreq mreq;
+    memset(&mreq, 0, sizeof(mreq));
+    mreq.imr_interface.s_addr = htonl(interface->ip);
+    mreq.imr_multiaddr.s_addr = inet_addr("224.0.0.5");
+    if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+        perror("[Thread]RecvPacket: setsockopt - multicast ip add membership");
+    }
 
 #define RECV_LEN 1024
     char* packet_rcv = (char*)malloc(RECV_LEN);
@@ -418,7 +450,7 @@ void* threadRecvPacket(void *intf) {
                     // receive ack of last dd, stop rxmt of this packet
                     if (neighbor->link_state_rxmt_map.count(neighbor->dd_seq_num) > 0) {
                         // check for safety, although there's no need to check here
-                        interface->rxmter.delPacketData(neighbor->link_state_rxmt_map[neighbor->dd_seq_num]);
+                        interface->rxmtter.delPacketData(neighbor->link_state_rxmt_map[neighbor->dd_seq_num]);
                     }
                     neighbor->dd_seq_num += 1;
 
@@ -447,7 +479,7 @@ void* threadRecvPacket(void *intf) {
                     dd_ack->b_M = (neighbor->db_summary_list.size() == 0) ? 0 : 1;
                     // send ack packet
                     sendPackets(data_ack, data_len, T_DD, neighbor->ip, neighbor->host_interface);
-                    uint32_t pdata_id = interface->rxmter.addPacketData(
+                    uint32_t pdata_id = interface->rxmtter.addPacketData(
                         PacketData(data_ack, data_len, T_DD, neighbor->ip, interface->rxmt_interval)
                     );
                     neighbor->link_state_rxmt_map[neighbor->dd_seq_num] = pdata_id;
@@ -519,12 +551,13 @@ void* threadRecvPacket(void *intf) {
             for (int i = 0; i < lsa_num; ++i) {
                 // receive lsa form ospf_lsu
                 LSAHeader* lsa_header = (LSAHeader*)lsa_ptr;
-
-                
+                lsdb.addLSA(lsa_ptr);
+                lsa_ptr += lsa_header->length;
+                sendPackets((char*)lsa_header, LSAHDR_LEN, T_LSAck, ntohl(inet_addr("225.0.0.5")), interface);
             }
         }
 
-        after_dealing:
+        after_dealing:;
     }
 
     free(packet_rcv);
