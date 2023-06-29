@@ -15,4 +15,7 @@ namespace myconfigs {
     extern pthread_attr_t thread_attr;
 } // namespace Configs
 
+extern struct in_addr ipaddr_tmp;
+extern int lsa_seq_cnt;
+
 #endif // SETTINGS_H

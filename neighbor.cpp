@@ -23,10 +23,16 @@ Neighbor::~Neighbor() {
 void Neighbor::initDBSummaryList() {
     pthread_mutex_lock(&lsdb.router_lock);
 
-    for (auto& p_lsa: lsdb.router_lsas) 
-        db_summary_list.push_back(p_lsa->lsa_header);
-    for (auto& p_lsa: lsdb.network_lsas)
-        db_summary_list.push_back(p_lsa->lsa_header);
+    for (auto& p_lsa: lsdb.router_lsas) {
+        char* full_rlsa_packet = p_lsa->toRouterLSA();
+        db_summary_list.push_back(((LSARouter*)full_rlsa_packet)->lsa_header);
+        delete full_rlsa_packet;
+    }
+    for (auto& p_lsa: lsdb.network_lsas) {
+        char* full_nlsa_packet = p_lsa->toNetworkLSA();
+        db_summary_list.push_back(((LSANetwork*)full_nlsa_packet)->lsa_header);
+        delete full_nlsa_packet;
+    }
 
     pthread_mutex_unlock(&lsdb.router_lock);
 }

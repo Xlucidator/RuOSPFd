@@ -109,6 +109,7 @@ struct LSAHeader {
     LSAHeader();
     void host2net();    // be careful！ has no check before transition
     void net2host();    // be careful！ has no check before transition
+    void printInfo();
 };
 
 /* LSA Data */

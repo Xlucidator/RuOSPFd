@@ -8,5 +8,7 @@ namespace myconfigs {
     std::vector<Interface*> interfaces;
 
     pthread_attr_t thread_attr;
-
 } // namespace Configs
+
+struct in_addr ipaddr_tmp;
+int lsa_seq_cnt = 0;
