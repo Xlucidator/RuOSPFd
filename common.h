@@ -16,11 +16,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h> // ntoh hton ...
 #include <netinet/ip.h>
+#include <netinet/if_ether.h> // ETH_P_IP ... ethernet frame
 
 /* nic */
 #include <sys/ioctl.h>
-#include <net/if.h>
-#include <arpa/inet.h>  // inet_addr
+#include <net/if.h>     // ifr
+#include <arpa/inet.h>  // inet_addr inet_ntoa()
 
 /* setting */
 #include "setting.h"

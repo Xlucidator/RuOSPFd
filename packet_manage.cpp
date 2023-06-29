@@ -195,11 +195,11 @@ void* threadSendLSRPackets(void* nbr) {
 void* threadRecvPackets(void *intf) {
     Interface *interface = (Interface*) intf;
     int socket_fd;
-    if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
+    if ((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
         perror("[Thread]RecvPacket: socket_fd init");
     }
 
-    /* Bind sockets to certain Network Interface */
+    /* Bind sockets to certain Network Interface : seems useless */
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strcpy(ifr.ifr_name, myconfigs::nic_name);
@@ -207,24 +207,39 @@ void* threadRecvPackets(void *intf) {
         perror("[Thread]RecvPacket: setsockopt - bind to device");
     }
 
-    /* add to OSPF multicast */
-    struct ip_mreq mreq;
-    memset(&mreq, 0, sizeof(mreq));
-    mreq.imr_interface.s_addr = htonl(interface->ip);
-    mreq.imr_multiaddr.s_addr = inet_addr("224.0.0.5");
-    if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-        perror("[Thread]RecvPacket: setsockopt - multicast ip add membership");
-    }
+#ifdef DEBUG
+    printf("[Thread]RecvPacket init\n");
+#endif
 
-#define RECV_LEN 1024
-    char* packet_rcv = (char*)malloc(RECV_LEN);
+    struct iphdr *ip_header;
+    struct in_addr src, dst;
+#define RECV_LEN 1514
+    char* frame_rcv = (char*)malloc(RECV_LEN);
+    char* packet_rcv = frame_rcv + sizeof(struct ethhdr);
     while (true) {
-        memset(packet_rcv, 0, RECV_LEN);
-        recv(socket_fd, packet_rcv, RECV_LEN, 0);
-        in_addr_t src_ip = ntohl(*(uint32_t*)(packet_rcv + IPHDR_SRCIP));
-        if (src_ip == interface->ip) {
-            continue; // from self, finish packet process
+        memset(frame_rcv, 0, RECV_LEN);
+        int recv_size = recv(socket_fd, frame_rcv, RECV_LEN, 0);
+        
+        /* check IP Header : filter  */
+        ip_header = (struct iphdr*)packet_rcv;
+        // 1. not OSPF packet
+        if (ip_header->protocol != 89) {
+            continue;
         }
+        // 2. src_ip or dst_ip don't fit
+        in_addr_t src_ip = ntohl(*(uint32_t*)(packet_rcv + IPHDR_SRCIP));
+        in_addr_t dst_ip = ntohl(*(uint32_t*)(packet_rcv + IPHDR_DSTIP));
+        if ((dst_ip != interface->ip && dst_ip != ntohl(inet_addr("224.0.0.5"))) ||
+            src_ip == interface->ip) {
+            continue;
+        }
+
+        #ifdef DEBUG
+            printf("[Thread]RecvPacket: recv one");
+            src.s_addr = src_ip;
+            dst.s_addr = dst_ip;
+            printf(" src:%s, dst:%s\n", inet_ntoa(src), inet_ntoa(dst));
+        #endif
 
         OSPFHeader* ospf_header = (OSPFHeader*)(packet_rcv + IPHDR_LEN);
         /* translate : net to host */
