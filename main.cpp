@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
     Interface interface1;
     interface1.ip = ntohl(inet_addr("192.168.75.128")); // TODO: read nic for addr
     myconfigs::interfaces.push_back(&interface1);
+    interface1.eventInterfaceUp();
 
     /* init thread global attribute */
     pthread_attr_init(&myconfigs::thread_attr);
