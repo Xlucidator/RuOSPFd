@@ -30,8 +30,8 @@ LSAHeader::LSAHeader() {
 
 void LSAHeader::host2net() {
     ls_age = htons(ls_age);
-    link_state_id = htons(link_state_id);
-    advertising_router = htons(advertising_router);
+    link_state_id = htonl(link_state_id);
+    advertising_router = htonl(advertising_router);
     ls_checksum = htons(ls_checksum);
     length = htons(length);
     ls_sequence_number = htonl(ls_sequence_number);
@@ -39,11 +39,22 @@ void LSAHeader::host2net() {
 
 void LSAHeader::net2host() {
     ls_age = ntohs(ls_age);
-    link_state_id = ntohs(link_state_id);
-    advertising_router = ntohs(advertising_router);
+    link_state_id = ntohl(link_state_id);
+    advertising_router = ntohl(advertising_router);
     ls_checksum = ntohs(ls_checksum);
     length = ntohs(length);
     ls_sequence_number = ntohl(ls_sequence_number);
+}
+
+void LSAHeader::printInfo() {
+    // assume data is in the host sequence
+    printf("====[LSA Header]====\n");
+    printf("ls_age: %d\n", ls_age);
+    ipaddr_tmp.s_addr = link_state_id;
+    printf("link_state_id: %s\n", inet_ntoa(ipaddr_tmp));
+    ipaddr_tmp.s_addr = advertising_router;
+    printf("advertising_router: %s\n", inet_ntoa(ipaddr_tmp));
+    printf("====================\n");
 }
 
 /* ============ Router Link ============ */
@@ -70,6 +81,7 @@ bool LSARouterLink::operator==(const LSARouterLink& other) {
 
 /* ============ Router LSA ============ */
 LSARouter::LSARouter() {
+    lsa_header = LSAHeader();
     zero1 = 0;
     b_B = b_E = b_V = 0;
     zero2 = 0;
@@ -147,6 +159,7 @@ bool LSARouter::operator==(const LSARouter& other) {    // TODO: lsa update? i d
 
 /* ============ Netword LSA ============ */
 LSANetwork::LSANetwork() {
+    lsa_header = LSAHeader();
     network_mask = 0xffffff00;  // not good
 }
 
