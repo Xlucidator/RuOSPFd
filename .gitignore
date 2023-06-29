@@ -2,5 +2,6 @@
 *.out
 my_ospf
 try/test.cpp
+try/test*
 
 .vscode
