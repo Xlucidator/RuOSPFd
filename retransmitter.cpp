@@ -4,13 +4,13 @@
 #include "common.h"
 
 PacketData::PacketData(const char* data, size_t data_len, uint8_t type, uint32_t dst_ip, uint32_t duration) {
-    data = data;
-    data_len = data_len;
-    type = type;
-    dst_ip = dst_ip;
+    this->data = data;
+    this->data_len = data_len;
+    this->type = type;
+    this->dst_ip = dst_ip;
 
-    age = 0;
-    duration = duration;
+    this->age = 0;
+    this->duration = duration;
 }
 
 PacketData::~PacketData() {
@@ -29,6 +29,9 @@ uint32_t Retransmitter::addPacketData(PacketData packet_data) {
     pthread_mutex_lock(&list_lock);
         packet_list.push_back(packet_data);
     pthread_mutex_unlock(&list_lock);
+    #ifdef DEBUG
+        printf("[rxmtter]add packet: type %d, id %d\n", packet_data.type, packet_data.id);
+    #endif
     return packet_data.id;
 }
 
@@ -36,6 +39,9 @@ void Retransmitter::delPacketData(uint32_t id) {
     pthread_mutex_lock(&list_lock);
         for (auto it = packet_list.begin(); it != packet_list.end(); ++it) {
             if (it->id == id) {
+            #ifdef DEBUG
+                printf("[rxmtter]del packet: type %d, id %d\n", it->type, it->id);
+            #endif
                 packet_list.erase(it);
                 break;
             }

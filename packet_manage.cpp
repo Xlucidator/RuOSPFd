@@ -21,9 +21,9 @@ uint16_t crc_checksum(const void* data, size_t len) {
 }
 
 void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst_ip, Interface* interface) {
-    #ifdef DEBUG
-        printf("...try to use [sendPackets]: data_len - %d, type - %d...\n", data_len, type);
-    #endif
+    // #ifdef DEBUG
+    //     printf("...try to use [sendPackets]: data_len - %d, type - %d...\n", data_len, type);
+    // #endif
     int socket_fd;
     if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
         perror("SendPacket: socket_fd init");
@@ -455,8 +455,11 @@ void* threadRecvPackets(void *intf) {
                 }
 
                 /* 2. Reply to the DD packet received */
+                #ifdef DEBUG
+                    printf("making reply dd packet.\n");
+                #endif
                 char* data_ack = (char*)malloc(1024);
-                size_t data_len = 0;
+                int data_len = 0;
 
                 OSPFDD* dd_ack = (OSPFDD*)data_ack;
                 memset(dd_ack, 0, sizeof(OSPFDD));
@@ -496,10 +499,12 @@ void* threadRecvPackets(void *intf) {
                     free(data_ack);
                 } else {
                     /* interface is master */
-                    printf("[i'm here]\n");
                     // receive ack of last dd, stop rxmt of this packet
                     if (neighbor->link_state_rxmt_map.count(neighbor->dd_seq_num) > 0) {
                         // check for safety, although there's no need to check here
+                        #ifdef DEBUG
+                            printf("...recv dd ack, delete rxmt of packet...\n");
+                        #endif
                         interface->rxmtter.delPacketData(neighbor->link_state_rxmt_map[neighbor->dd_seq_num]);
                     }
                     neighbor->dd_seq_num += 1;
@@ -514,12 +519,17 @@ void* threadRecvPackets(void *intf) {
                     // add lsa_header
                     LSAHeader* write_lsa_header = (LSAHeader*)(data_ack + sizeof(OSPFDD));
                     int lsa_cnt = 0;
+                    #ifdef DEBUG
+                        printf("adding lsa_header...\n");
+                    #endif
                     while (neighbor->db_summary_list.size() > 0) {
                         if (lsa_cnt >= 10) break;   // simply limit to 10 lsa (in fact may it depend on MTU, up to 100)
 
                         LSAHeader& lsa_h = neighbor->db_summary_list.front();
-                        lsa_h.host2net();
                         memcpy(write_lsa_header, &lsa_h, LSAHDR_LEN);
+                        #ifdef DEBUG
+                            lsa_h.printInfo();
+                        #endif
 
                         write_lsa_header += 1;
                         lsa_cnt += 1;
@@ -528,7 +538,6 @@ void* threadRecvPackets(void *intf) {
                     }
                     dd_ack->b_M = (neighbor->db_summary_list.size() == 0) ? 0 : 1;
                     // send ack packet
-                    printf("[i'm here]\n");
                     sendPackets(data_ack, data_len, T_DD, neighbor->ip, neighbor->host_interface);
                     uint32_t pdata_id = interface->rxmtter.addPacketData(
                         PacketData(data_ack, data_len, T_DD, neighbor->ip, interface->rxmt_interval)
