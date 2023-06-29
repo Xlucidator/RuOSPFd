@@ -38,7 +38,7 @@ void* waitTimer(void* intf);
 
 class Interface {
 public:
-    NetworkType    type  = NetworkType::T_P2P;  // TODO: default broadcast in ensp
+    NetworkType    type  = NetworkType::T_BROADCAST;  // default broadcast in ensp
     InterfaceState state = InterfaceState::S_DOWN;
     in_addr_t   ip;
     uint32_t    mask = 0xffffff00;

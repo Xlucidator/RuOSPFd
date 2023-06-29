@@ -36,6 +36,10 @@ void Neighbor::eventHelloReceived() {
     if (state == NeighborState::S_DOWN) {
         state = NeighborState::S_INIT;
         printf("and its state from DOWN -> INIT.\n");
+    } else if (state >= NeighborState::S_INIT) {
+        printf("and neighbor updated.\n");
+    } else {
+        printf("and reject.\n");
     }
 }
 
@@ -71,6 +75,8 @@ void Neighbor::event2WayReceived() {
                 break;
             }
         }
+    } else {
+        printf("and reject.\n");
     }
 }
 
@@ -79,15 +85,20 @@ void Neighbor::event1WayReceived() {
     if (state >= NeighborState::S_2WAY) { // above 2WAY
         state = NeighborState::S_INIT;
         printf("and its state from 2-WAY -> INIT.\n");
+        // TODO: clear link_state_rxmt_map(and interface->rxmtter), db_summary_list, link_state_req_list
+    } else {
+        printf("and reject.\n");
     }
 }
 
 void Neighbor::eventNegotiationDone() {
-    printf("Neighbor %x received 1WayReceived ", this->id);
+    printf("Neighbor %x received NegotiationDone ", this->id);
     if (state == NeighborState::S_EXSTART) {
         state = NeighborState::S_EXCHANGE;
         printf("and its state from EXSTART -> EXCHANGE.\n");
         initDBSummaryList();
+    } else {
+        printf("and reject.\n");
     }
 }
 
@@ -95,10 +106,12 @@ void Neighbor::eventSeqNumberMismatch() {
     printf("Neighbor %x received SeqNumberMismatch ", this->id);
     if (state >= NeighborState::S_EXCHANGE) {
         NeighborState prev_state = state;
-        // TODO: clear three list/deque/map
+        // TODO: clear link_state_rxmt_map(and interface->rxmtter), db_summary_list, link_state_req_list
         // init sending empty dd packet (M/I/MS = 1) again
         state = NeighborState::S_EXSTART;
         printf("and its state from XXX -> EXSTART.\n");
+    } else {
+        printf("and reject.\n");
     }
 }
 
@@ -117,6 +130,8 @@ void Neighbor::eventExchangeDone() {
             printf("and its state from EXCHANGE -> LOADING.\n");
             pthread_create(&lsr_send_thread, &myconfigs::thread_attr, threadSendLSRPackets, (void*)this);
         }
+    } else {
+        printf("and reject.\n");
     }
 }
 
@@ -129,5 +144,7 @@ void Neighbor::evnetBadLSReq() {
         // init sending empty dd packet (M/I/MS = 1) again
         state = NeighborState::S_EXSTART;
         printf("and its state from XXX -> EXSTART.\n");
+    } else {
+        printf("and reject.\n");
     }
 }

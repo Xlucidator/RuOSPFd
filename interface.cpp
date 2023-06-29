@@ -124,8 +124,8 @@ void Interface::electDesignedRouter() {
     this->bdr = bdr->ip;
 
 #ifdef DEBUG
-    std::cout << "\tnew dr: "  << this->dr  << std::endl;
-    std::cout << "\tnew bdr: " << this->bdr << std::endl;
+    printf("\tnew dr: %x\n", this->dr);
+    printf("\tnew bdr: %x\n", this->bdr);
     printf("\tfinished\n");
 #endif
 }

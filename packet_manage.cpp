@@ -21,6 +21,9 @@ uint16_t crc_checksum(const void* data, size_t len) {
 }
 
 void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst_ip, Interface* interface) {
+    #ifdef DEBUG
+        printf("...try to use [sendPackets]: data_len - %d, type - %d...\n", data_len, type);
+    #endif
     int socket_fd;
     if ((socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_OSPF)) < 0) {
         perror("SendPacket: socket_fd init");
@@ -40,7 +43,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     dst_sockaddr.sin_family = AF_INET;
     dst_sockaddr.sin_addr.s_addr = htonl(dst_ip);
 
-    char* packet = (char*)malloc(65535);
+    char* packet = (char*)malloc(1500);
     size_t packet_len = OSPFHDR_LEN + data_len;
     /* OSPF Header */
     OSPFHeader* ospf_header = (OSPFHeader*)packet;
@@ -66,7 +69,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     } 
 #ifdef DEBUG
     else {
-        printf("SendPacket: type %d send success\n", type);
+        printf("SendPacket: type %d send success, len %d\n", type, packet_len);
     }
 #endif
 
@@ -338,26 +341,45 @@ void* threadRecvPackets(void *intf) {
                 case NeighborState::S_EXSTART: {
                     if (ospf_dd->b_M && ospf_dd->b_I && ospf_dd->b_MS
                         && neighbor->id > myconfigs::router_id) {
+                        // receive dd: 1 1 1 bigger_id
                         /* confirm neighbor is master */
+                        #ifdef DEBUG
+                            printf("neighbor %x declare master, ", neighbor->id);
+                            printf("interface %x agree => ", interface->ip);
+                            printf("neighbor is master\n");
+                        #endif
                         neighbor->is_master = true;
                         neighbor->dd_seq_num = seq_num;
                         seq_num += 1;
-                        // TODO? set b_M to 0 in ack DD
                     } else
                     if (!ospf_dd->b_I && !ospf_dd->b_MS
                         && ospf_dd->sequence_number == seq_num
                         && neighbor->id < myconfigs::router_id) {
+                        // receive dd: x 0 0 smaller_id
                         /* confirm neighbor is slave */
+                        #ifdef DEBUG
+                            printf("neighbor %x agree slave, ", neighbor->id);
+                            printf("interface %x confirm\n => ", interface->ip);
+                            printf("self is master\n");
+                        #endif
                         neighbor->is_master = false;
                     } else {
                         /* ignore the packet */
+                        #ifdef DEBUG
+                            printf("don't agree, ignore\n");
+                        #endif
                         continue; 
                     }
                     neighbor->eventNegotiationDone();
+                    // received dd may contain lsa_header now, need parse again in S_EXCHANGE
+                    goto dd_switch; 
                     break;
                 }
                 case NeighborState::S_EXCHANGE: {
                     if (is_dup) {
+                        #ifdef DEBUG
+                            printf("duplicated dd packet: ignore\n");
+                        #endif
                         if (neighbor->is_master) {
                             // neighbor is master -> host interface is slave
                             sendPackets(neighbor->last_dd_data, neighbor->last_dd_data_len, T_DD, neighbor->ip, neighbor->host_interface); 
@@ -365,13 +387,24 @@ void* threadRecvPackets(void *intf) {
                         continue; // ignore the packet
                     }
                     if (ospf_dd->b_I || (ospf_dd->b_MS ^ neighbor->is_master)) {
+                        // negotiation is done, b_I should not be 1 ; b_MS should fit negotiation result
+                        #ifdef DEBUG
+                            printf("mismatch: b_I should not be 1 or b_MS should fit negotiation result\n");
+                        #endif
                         neighbor->eventSeqNumberMismatch(); // TODO
                         continue;
                     }
-                    if ((neighbor->is_master && seq_num == neighbor->dd_seq_num + 1) &&
+                    if ((neighbor->is_master && seq_num == neighbor->dd_seq_num + 1) ||
                         (!neighbor->is_master && seq_num == neighbor->dd_seq_num)) {
+                        // dd packet's seq_num is legal: so we can recv it and analysis (it may has lsa_header)
+                        #ifdef DEBUG
+                            printf("accepted dd packet, analysis the possible lsa_header\n");
+                        #endif
                         is_accepted = true;
                     } else {
+                        #ifdef DEBUG
+                            printf("mismatch: dd packet's seq_num is illegal\n");
+                        #endif
                         neighbor->eventSeqNumberMismatch();
                         continue;
                     }
@@ -398,7 +431,7 @@ void* threadRecvPackets(void *intf) {
             }
 
             if (is_accepted) {
-                /* 1. Receive DD packet and update req_list */
+                /* 1. Receive DD packet and update link_state_req_list */
                 LSAHeader* lsa_header_rcv = (LSAHeader*)(packet_rcv + IPHDR_LEN + OSPF_DD_LEN);
                 LSAHeader* lsa_header_end = (LSAHeader*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
                 while (lsa_header_rcv != lsa_header_end) {
@@ -407,7 +440,7 @@ void* threadRecvPackets(void *intf) {
                     lsa_header.link_state_id = ntohl(lsa_header_rcv->link_state_id);
                     lsa_header.ls_sequence_number = ntohl(lsa_header_rcv->ls_sequence_number);
                     lsa_header.ls_type = lsa_header_rcv->ls_type;
-                    /* add to req_list if lsdb do not have the lsa */
+                    /* add to link_state_req_list if lsdb do not have the lsa */
                     if (lsa_header.ls_type == LSA_ROUTER) {
                         if (lsdb.getRouterLSA(lsa_header.link_state_id, lsa_header.advertising_router) == nullptr) {
                             neighbor->link_state_req_list.push_back(lsa_header);
@@ -426,7 +459,7 @@ void* threadRecvPackets(void *intf) {
                 size_t data_len = 0;
 
                 OSPFDD* dd_ack = (OSPFDD*)data_ack;
-                memset(&dd_ack, 0, sizeof(OSPFDD));
+                memset(dd_ack, 0, sizeof(OSPFDD));
                 data_len += sizeof(OSPFDD);
                 dd_ack->options = 0x02;
                 dd_ack->interface_MTU = htons(neighbor->host_interface->mtu);
@@ -463,6 +496,7 @@ void* threadRecvPackets(void *intf) {
                     free(data_ack);
                 } else {
                     /* interface is master */
+                    printf("[i'm here]\n");
                     // receive ack of last dd, stop rxmt of this packet
                     if (neighbor->link_state_rxmt_map.count(neighbor->dd_seq_num) > 0) {
                         // check for safety, although there's no need to check here
@@ -494,6 +528,7 @@ void* threadRecvPackets(void *intf) {
                     }
                     dd_ack->b_M = (neighbor->db_summary_list.size() == 0) ? 0 : 1;
                     // send ack packet
+                    printf("[i'm here]\n");
                     sendPackets(data_ack, data_len, T_DD, neighbor->ip, neighbor->host_interface);
                     uint32_t pdata_id = interface->rxmtter.addPacketData(
                         PacketData(data_ack, data_len, T_DD, neighbor->ip, interface->rxmt_interval)
