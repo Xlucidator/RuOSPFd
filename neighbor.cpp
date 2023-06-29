@@ -32,7 +32,7 @@ void Neighbor::initDBSummaryList() {
 }
 
 void Neighbor::eventHelloReceived() {
-    printf("Neighbor %d received HelloReceived ", this->id);
+    printf("Neighbor %x received HelloReceived ", this->id);
     if (state == NeighborState::S_DOWN) {
         state = NeighborState::S_INIT;
         printf("and its state from DOWN -> INIT.\n");
@@ -40,7 +40,7 @@ void Neighbor::eventHelloReceived() {
 }
 
 void Neighbor::event2WayReceived() {
-    printf("Neighbor %d received 2WayReceived ", this->id);
+    printf("Neighbor %x received 2WayReceived ", this->id);
     if (state == NeighborState::S_INIT) {      
 
         Interface* h_intf = this->host_interface;
@@ -75,7 +75,7 @@ void Neighbor::event2WayReceived() {
 }
 
 void Neighbor::event1WayReceived() {
-    printf("Neighbor %d received 1WayReceived ", this->id);
+    printf("Neighbor %x received 1WayReceived ", this->id);
     if (state >= NeighborState::S_2WAY) { // above 2WAY
         state = NeighborState::S_INIT;
         printf("and its state from 2-WAY -> INIT.\n");
@@ -83,7 +83,7 @@ void Neighbor::event1WayReceived() {
 }
 
 void Neighbor::eventNegotiationDone() {
-    printf("Neighbor %d received 1WayReceived ", this->id);
+    printf("Neighbor %x received 1WayReceived ", this->id);
     if (state == NeighborState::S_EXSTART) {
         state = NeighborState::S_EXCHANGE;
         printf("and its state from EXSTART -> EXCHANGE.\n");
@@ -92,7 +92,7 @@ void Neighbor::eventNegotiationDone() {
 }
 
 void Neighbor::eventSeqNumberMismatch() {
-    printf("Neighbor %d received SeqNumberMismatch ", this->id);
+    printf("Neighbor %x received SeqNumberMismatch ", this->id);
     if (state >= NeighborState::S_EXCHANGE) {
         NeighborState prev_state = state;
         // TODO: clear three list/deque/map
@@ -103,7 +103,7 @@ void Neighbor::eventSeqNumberMismatch() {
 }
 
 void Neighbor::eventExchangeDone() {
-    printf("Neighbor %d received ExchangeDone ", this->id);
+    printf("Neighbor %x received ExchangeDone ", this->id);
     if (state == NeighborState::S_EXCHANGE) {
         if (link_state_req_list.size() == 0) {
             /* has all lsas: no need to request */
@@ -121,7 +121,7 @@ void Neighbor::eventExchangeDone() {
 }
 
 void Neighbor::evnetBadLSReq() {
-    printf("Neighbor %d received BadLSReq ", this->id);
+    printf("Neighbor %x received BadLSReq ", this->id);
     // TODO: similar to event SeqNumberMismatch, need to negotiate a new adjacent relationship
     if (state >= NeighborState::S_EXCHANGE) {
         NeighborState prev_state = state;

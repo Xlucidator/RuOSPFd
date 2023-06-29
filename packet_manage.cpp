@@ -66,7 +66,7 @@ void sendPackets(const char* ospf_data, int data_len, uint8_t type, uint32_t dst
     } 
 #ifdef DEBUG
     else {
-        printf("SendPacket: send success\n");
+        printf("SendPacket: type %d send success\n", type);
     }
 #endif
 
@@ -238,7 +238,8 @@ void* threadRecvPackets(void *intf) {
             printf("[Thread]RecvPacket: recv one");
             src.s_addr = src_ip;
             dst.s_addr = dst_ip;
-            printf(" src:%s, dst:%s\n", inet_ntoa(src), inet_ntoa(dst));
+            printf(" src:%s,", inet_ntoa(src)); // inet_ntoa() -> char* is static
+            printf(" dst:%s\n", inet_ntoa(dst));
         #endif
 
         OSPFHeader* ospf_header = (OSPFHeader*)(packet_rcv + IPHDR_LEN);

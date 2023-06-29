@@ -42,8 +42,10 @@ int main(int argc, char **argv) {
         // printf("Source MAC addr : %02x:%02x:%02x:%02x:%02x:%02x\n", eth->h_source[0], eth->h_source[1], eth->h_source[2], eth->h_source[3], eth->h_source[4], eth->h_source[5]);
 
         iph = (struct iphdr*)(buffer + sizeof(struct ethhdr)); //将接收的数据转为IPv4数据包的格式
-        memcpy(&addr1, &iph->saddr, 4);  //复制源IP地址
-        memcpy(&addr2, &iph->daddr, 4);  //复制目的IP地址
+        // memcpy(&addr1, &iph->saddr, 4);  //复制源IP地址
+        // memcpy(&addr2, &iph->daddr, 4);  //复制目的IP地址
+        addr1.s_addr = iph->saddr;
+        addr2.s_addr = iph->daddr;
 
         if (iph->protocol != 89) {
             continue;

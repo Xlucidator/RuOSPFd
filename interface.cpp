@@ -52,14 +52,15 @@ void Interface::electDesignedRouter() {
     std::list<Neighbor*> candidates;
 
     /* Select Candidates */
-    Neighbor self(this->ip, this);
+    Neighbor self(this->ip, this); 
     self.id   = myconfigs::router_id;
     self.ndr  = this->dr;
     self.nbdr = this->bdr;
-    self.priority = this->router_priority;
+    self.priority = this->router_priority; 
 
-    candidates.push_back(&self);
-    for (auto& p_neighbor: neighbor_list) {
+    candidates.push_back(&self); // add self
+    // TODO: do we need a lock?
+    for (auto& p_neighbor: neighbor_list) { // add other neighbors
         if (static_cast<uint8_t>(p_neighbor->state) >= 
             static_cast<uint8_t>(NeighborState::S_2WAY) && 
             p_neighbor->priority != 0) {
@@ -71,7 +72,7 @@ void Interface::electDesignedRouter() {
     /* Launch Election */
     Neighbor* dr  = nullptr;
     Neighbor* bdr = nullptr;
-    /* Elect BDR */
+    /* 1. Elect BDR */
     std::vector<Neighbor*> bdr_candidates_lv1; // most fittest
     std::vector<Neighbor*> bdr_candidates_lv2; // second fittest
     for (auto& p_neighbor: candidates) {
@@ -92,7 +93,7 @@ void Interface::electDesignedRouter() {
         bdr = bdr_candidates_lv2[0];
     } // assume bdr_candidates_lv2 isn't empty
 
-    /* Elect DR */
+    /* 2. Elect DR */
     std::vector<Neighbor*> dr_candidates;
     for (auto& p_neighbor : candidates) {
         if (p_neighbor->ndr == p_neighbor->id) {
@@ -131,8 +132,9 @@ void Interface::electDesignedRouter() {
 
 
 void Interface::eventInterfaceUp() {
-    printf("Interface %d received BackUpSeen ", this->ip);
+    printf("Interface %x received BackUpSeen ", this->ip);
     if (state == InterfaceState::S_DOWN) {
+        // TODO: NBMA/BROADCAST: WAITING; P2P/P2MP/VIRTUAL: POINT-2-POINT
         pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -144,11 +146,13 @@ void Interface::eventInterfaceUp() {
 
         state = InterfaceState::S_WAITING;
         printf("and its state from DOWN -> WAITING.\n");
+    } else {
+        printf("and reject.\n");
     }
 }
 
 void Interface::eventWaitTimer() {
-    printf("Interface %d received WaitTimer ", this->ip);
+    printf("Interface %x received WaitTimer ", this->ip);
     if (state == InterfaceState::S_WAITING) {
         electDesignedRouter();
         if (ip == dr) {
@@ -163,11 +167,13 @@ void Interface::eventWaitTimer() {
         }
 
         onGeneratingRouterLSA();
+    } else {
+        printf("and reject.\n");
     }
 }
 
 void Interface::eventBackUpSeen() {
-    printf("Interface %d received BackUpSeen ", this->ip);
+    printf("Interface %x received BackUpSeen ", this->ip);
     if (state == InterfaceState::S_WAITING) {
         electDesignedRouter();
         if (ip == dr) {
@@ -182,11 +188,13 @@ void Interface::eventBackUpSeen() {
         }
 
         onGeneratingRouterLSA();
+    } else {
+        printf("and reject.\n");
     }
 }
 
 void Interface::eventNeighborChange() {
-    printf("Interface %d received NeighborChange ", this->ip);
+    printf("Interface %x received NeighborChange ", this->ip);
 
     if (state == InterfaceState::S_DR ||
         state == InterfaceState::S_BACKUP ||
@@ -205,5 +213,7 @@ void Interface::eventNeighborChange() {
         }
 
         onGeneratingRouterLSA();
+    } else {
+        printf("and reject.\n");
     }
 }
