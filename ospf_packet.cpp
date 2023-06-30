@@ -2,16 +2,58 @@
 #include "ospf_packet.h"
 #include <netinet/in.h>
 
-uint16_t fletcher_checksum(const void* data, size_t len) {
+uint16_t not_a_fletcher_checksum(const void* data, size_t len) {
     const uint8_t* ptr = static_cast<const uint8_t*>(data);
     uint16_t sum1 = 0, sum2 = 0;
     
     for (size_t i = 0; i < len; ++i) {
-        sum1 = (sum1 + ptr[i]) & 0xff;
-        sum2 = (sum2 + sum1)   & 0xff;
+        sum1 = (sum1 + ptr[i]) % 255;
+        sum2 = (sum2 + sum1)   % 255;
     }
 
     return (sum2 << 8) | sum1;
+}
+
+uint16_t fletcher_checksum(const void* data, size_t len, int checksum_offset) {
+    const uint8_t* ptr = static_cast<const uint8_t*>(data);
+    int length = len;
+
+    int32_t x, y;
+	uint32_t mul;
+	uint32_t c0 = 0, c1 = 0;
+	uint16_t checksum = 0;
+
+	for (int index = 0; index < length; index++) {
+		if (index == checksum_offset ||
+			index == checksum_offset+1) {
+            // in case checksum has not set 0 before
+			c1 += c0;
+			ptr++;
+		} else {
+			c0 = c0 + *(ptr++);
+			c1 += c0;
+		}
+	}
+
+	c0 = c0 % 255;
+	c1 = c1 % 255;	
+    mul = (length - checksum_offset)*(c0);
+  
+	x = mul - c0 - c1;
+	y = c1 - mul - 1;
+
+	if ( y >= 0 ) y++;
+	if ( x < 0 ) x--;
+
+	x %= 255;
+	y %= 255;
+
+	if (x == 0) x = 255;
+	if (y == 0) y = 255;
+
+	y &= 0x00FF;
+  
+	return (x << 8) | y;
 }
 
 /* OSPF Packet */
@@ -133,7 +175,12 @@ char* LSARouter::toRouterLSA() {
         p_router_link += 1;
     }
     /* fill osi fletcher checksum */
-    lsa_header.ls_checksum = fletcher_checksum(rlsa_data+2, lsa_header.length-2);
+    lsa_header.ls_checksum = fletcher_checksum(rlsa_data+2, lsa_header.length-2, 14);
+#ifdef DEBUG
+    uint16_t ck2 = not_a_fletcher_checksum(rlsa_data+2, lsa_header.length-2);
+    printf("fletcher1: %x\n", lsa_header.ls_checksum);
+    printf("fletcher2: %x\n", ck2);
+#endif
     LSAHeader* p_lsa_header = (LSAHeader*)rlsa_data;
     p_lsa_header->ls_checksum = htons(lsa_header.ls_checksum);
     
@@ -144,16 +191,17 @@ size_t LSARouter::size() {
     return LSAHDR_LEN + 4 + sizeof(LSARouterLink) * links.size();
 }
 
-bool LSARouter::operator==(const LSARouter& other) {    // TODO: lsa update? i don't think it's necessary to compare all
+bool LSARouter::operator==(const LSARouter& other) {    // lsa update? i don't think it's necessary to compare all
     if (lsa_header.link_state_id      != other.lsa_header.link_state_id ||
         lsa_header.advertising_router != other.lsa_header.advertising_router ||
-        lsa_header.length             != other.lsa_header.length ||
-        link_num != other.link_num) return false;
-    for (int i = 0; i < link_num; ++i) {
-        if (!(links[i] == other.links[i])) 
-            return false;
-    }
+        lsa_header.ls_sequence_number != other.lsa_header.ls_sequence_number
+        ) return false;
     return true;
+}
+
+bool LSARouter::operator>(const LSARouter& other) {
+    // TODO： not good enough, we should first make sure it's comparible!
+    return this->lsa_header.ls_sequence_number > other.lsa_header.ls_sequence_number;
 }
 
 
@@ -197,7 +245,7 @@ char* LSANetwork::toNetworkLSA() {
         ptr += 1;
     }
     /* fill osi fletcher checksum */
-    lsa_header.ls_checksum = fletcher_checksum(nlsa_data+2, lsa_header.length-2);
+    lsa_header.ls_checksum = fletcher_checksum(nlsa_data+2, lsa_header.length-2, 14);
     LSAHeader* p_lsa_header = (LSAHeader*)nlsa_data;
     p_lsa_header->ls_checksum = htons(lsa_header.ls_checksum);
     

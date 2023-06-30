@@ -1,4 +1,5 @@
 #include "lsdb.h"
+#include "common.h"
 
 
 LSDB::LSDB() {
@@ -54,11 +55,18 @@ LSANetwork* LSDB::getNetworkLSA(uint32_t link_state_id) {
     return nullptr;
 }
 
-void LSDB::addLSA(char* tar_ptr) {
-    LSAHeader* lsa_header = (LSAHeader*) tar_ptr;
+void LSDB::addLSA(char* net_ptr) {
+    LSAHeader* lsa_header = (LSAHeader*) net_ptr;
     
     if (lsa_header->ls_type == LSA_ROUTER) {
-        LSARouter* rlsa = new LSARouter(tar_ptr);
+        LSARouter* rlsa = new LSARouter(net_ptr);
+        
+        // checksum
+        LSARouter test_rlsa = *rlsa;
+        printf("recv checksum: %x\n", rlsa->lsa_header.ls_checksum);
+        printf("self checksum:\n");
+        test_rlsa.toRouterLSA();
+
         LSARouter* lsa_check = getRouterLSA(rlsa->lsa_header.link_state_id, rlsa->lsa_header.advertising_router);
         pthread_mutex_lock(&router_lock);
         if (lsa_check != nullptr) { // arbitrary : delete the old in the router_lsa;
@@ -73,7 +81,7 @@ void LSDB::addLSA(char* tar_ptr) {
         router_lsas.push_back(rlsa);
         pthread_mutex_unlock(&router_lock);
     } else if (lsa_header->ls_type == LSA_NETWORK) {
-        LSANetwork* nlsa = new LSANetwork(tar_ptr);
+        LSANetwork* nlsa = new LSANetwork(net_ptr);
         LSANetwork* lsa_check = getNetworkLSA(nlsa->lsa_header.link_state_id, nlsa->lsa_header.advertising_router);
         pthread_mutex_lock(&network_lock);
         if (lsa_check != nullptr) {

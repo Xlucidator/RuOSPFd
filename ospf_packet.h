@@ -22,7 +22,8 @@ enum OSPFType: uint8_t {
     T_LSAck
 };
 
-uint16_t fletcher_checksum(const void* data, size_t len);
+uint16_t not_a_fletcher_checksum(const void* data, size_t len);
+uint16_t fletcher_checksum(const void* data, size_t len, int checksum_offset);
 
 /* Packet Header */
 struct OSPFHeader {
@@ -142,6 +143,7 @@ struct LSARouter {
     char* toRouterLSA();  // [attention]: need to be del
     size_t size();
     bool operator==(const LSARouter& other);
+    bool operator>(const LSARouter& other);
 };
 
 struct LSANetwork {

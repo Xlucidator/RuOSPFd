@@ -21,7 +21,7 @@ public:
     LSARouter* getRouterLSA(uint32_t link_state_id);
     LSANetwork* getNetworkLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
     LSANetwork* getNetworkLSA(uint32_t link_state_id);
-    void addLSA(char* tar_ptr); // for all types
+    void addLSA(char* net_ptr); // add LSA from netptr from LSU, for all types
     void delLSA(uint32_t link_state_id, uint32_t advertise_rtr_id, uint8_t type);
 };
 
