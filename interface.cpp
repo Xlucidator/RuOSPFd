@@ -132,7 +132,7 @@ void Interface::electDesignedRouter() {
 
 
 void Interface::eventInterfaceUp() {
-    printf("Interface %x received BackUpSeen ", this->ip);
+    printf("Interface %x received InterfaceUp ", this->ip);
     if (state == InterfaceState::S_DOWN) {
         // TODO: NBMA/BROADCAST: WAITING; P2P/P2MP/VIRTUAL: POINT-2-POINT
         pthread_attr_t attr;
