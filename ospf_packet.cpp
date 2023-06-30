@@ -92,10 +92,12 @@ void LSAHeader::printInfo() {
     // assume data is in the host sequence
     printf("====[LSA Header]====\n");
     printf("ls_age: %d\n", ls_age);
+    printf("ls_type: %d\n", ls_type);
     ipaddr_tmp.s_addr = link_state_id;
     printf("link_state_id: %s\n", inet_ntoa(ipaddr_tmp));
     ipaddr_tmp.s_addr = advertising_router;
     printf("advertising_router: %s\n", inet_ntoa(ipaddr_tmp));
+    printf("ls_sequence_number: %x\n", ls_sequence_number);
     printf("====================\n");
 }
 
@@ -143,6 +145,7 @@ bool LSA::operator>(const LSA& other) {
 /* ============ Router LSA ============ */
 LSARouter::LSARouter() {
     // lsa_header = LSAHeader();
+    lsa_header.ls_type = 1;
     zero1 = 0;
     b_B = b_E = b_V = 0;
     zero2 = 0;
@@ -202,6 +205,45 @@ char* LSARouter::toRouterLSA() {
 #endif
     LSAHeader* p_lsa_header = (LSAHeader*)rlsa_data;
     p_lsa_header->ls_checksum = htons(lsa_header.ls_checksum);
+
+    return rlsa_data;
+}
+
+char* LSARouter::toLSAPacket() {
+    char *rlsa_data = new char[size()];
+    /* fix some dynamic values */
+    lsa_header.length = size();
+    lsa_header.ls_checksum = 0; // init to avoid disturb
+    link_num = links.size();
+    /* fill lsa_header */
+    LSAHeader lsa_header_net = lsa_header;
+    lsa_header_net.host2net();
+    memcpy(rlsa_data, &lsa_header_net, LSAHDR_LEN);
+    /* fill flags */
+    uint16_t* p_flags = (uint16_t*)(rlsa_data + LSAHDR_LEN);
+    *p_flags = 0;
+    /* fill link_num */
+    uint16_t* p_link_num = p_flags + 1;
+    *p_link_num = htons(link_num);
+    /* fill lsa router links */
+    LSARouterLink* p_router_link = (LSARouterLink*)(p_link_num + 1);
+    for (auto& link: links) {
+        p_router_link->link_id   = htonl(link.link_id);
+        p_router_link->link_data = htonl(link.link_data);
+        p_router_link->type      = link.type;
+        p_router_link->tos_num   = 0;   // 0 in arbitrary
+        p_router_link->metric    = htons(link.metric);
+        p_router_link += 1;
+    }
+    /* fill osi fletcher checksum */
+    lsa_header.ls_checksum = fletcher_checksum(rlsa_data+2, lsa_header.length-2, 14);
+#ifdef DEBUG
+    uint16_t ck2 = not_a_fletcher_checksum(rlsa_data+2, lsa_header.length-2);
+    printf("fletcher1: %x\n", lsa_header.ls_checksum);
+    printf("fletcher2: %x\n", ck2);
+#endif
+    LSAHeader* p_lsa_header = (LSAHeader*)rlsa_data;
+    p_lsa_header->ls_checksum = htons(lsa_header.ls_checksum);
     
     return rlsa_data;
 }
@@ -222,6 +264,7 @@ bool LSARouter::operator==(const LSARouter& other) {    // lsa update? i don't t
 /* ============ Netword LSA ============ */
 LSANetwork::LSANetwork() {
     // lsa_header = LSAHeader();
+    lsa_header.ls_type = 2;
     network_mask = 0xffffff00;  // not good
 }
 
@@ -242,6 +285,31 @@ LSANetwork::LSANetwork(char* net_ptr) {
 }
 
 char* LSANetwork::toNetworkLSA() {
+    char* nlsa_data = new char[size()];
+    /* fix some dynamic values */
+    lsa_header.length = size();
+    lsa_header.ls_checksum = 0; // init to avoid disturb
+    /* fill lsa_header */
+    LSAHeader lsa_header_net = lsa_header;
+    lsa_header_net.host2net();
+    memcpy(nlsa_data, &lsa_header_net, LSAHDR_LEN);
+    /* fill network_mask and attached routers */
+    uint32_t* ptr = (uint32_t*)(nlsa_data + LSAHDR_LEN);
+    ptr[0] = htonl(network_mask);
+    ptr += 1;
+    for (auto& router : attached_routers) {
+        *ptr = htonl(router);
+        ptr += 1;
+    }
+    /* fill osi fletcher checksum */
+    lsa_header.ls_checksum = fletcher_checksum(nlsa_data+2, lsa_header.length-2, 14);
+    LSAHeader* p_lsa_header = (LSAHeader*)nlsa_data;
+    p_lsa_header->ls_checksum = htons(lsa_header.ls_checksum);
+    
+    return nlsa_data;
+}
+
+char* LSANetwork::toLSAPacket() {
     char* nlsa_data = new char[size()];
     /* fix some dynamic values */
     lsa_header.length = size();

@@ -22,10 +22,13 @@ Neighbor::~Neighbor() {
 }
 
 void Neighbor::initDBSummaryList() {
+#ifdef DEBUG
+    printf("...start to init db_summary_list...\n");
+#endif
     pthread_mutex_lock(&lsdb.router_lock);
     for (auto& p_lsa: lsdb.router_lsas) {
         char* full_rlsa_packet = p_lsa->toRouterLSA();
-        db_summary_list.push_back(((LSARouter*)full_rlsa_packet)->lsa_header);
+        db_summary_list.push_back(*((LSAHeader*)full_rlsa_packet));
         delete full_rlsa_packet;
     }
     pthread_mutex_unlock(&lsdb.router_lock);
@@ -33,7 +36,7 @@ void Neighbor::initDBSummaryList() {
     pthread_mutex_lock(&lsdb.network_lock);
     for (auto& p_lsa: lsdb.network_lsas) {
         char* full_nlsa_packet = p_lsa->toNetworkLSA();
-        db_summary_list.push_back(((LSANetwork*)full_nlsa_packet)->lsa_header);
+        db_summary_list.push_back(*((LSAHeader*)full_nlsa_packet));
         delete full_nlsa_packet;
     }
     pthread_mutex_unlock(&lsdb.network_lock);

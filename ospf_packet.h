@@ -131,6 +131,8 @@ struct LSA {
     LSAHeader lsa_header;
 
     LSA();
+    virtual char* toLSAPacket() = 0;
+    virtual size_t size() = 0;
     bool operator>(const LSA& other);
 };
 
@@ -147,8 +149,9 @@ struct LSARouter : public LSA {
 
     LSARouter();
     LSARouter(char* net_ptr);
+    char* toLSAPacket() override;
     char* toRouterLSA();  // [attention]: need to be del
-    size_t size();
+    size_t size() override;
     bool operator==(const LSARouter& other);
     // bool operator>(const LSARouter& other);
 };
@@ -161,8 +164,9 @@ struct LSANetwork : public LSA {
 
     LSANetwork();
     LSANetwork(char* net_ptr);
+    char* toLSAPacket() override;
     char* toNetworkLSA(); // [attention]: need to be del
-    size_t size();
+    size_t size() override;
     bool operator==(const LSANetwork& other);
 };
 
