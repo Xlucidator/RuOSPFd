@@ -171,28 +171,38 @@ void* threadSendEmptyDDPackets(void* nbr) {
     
 }
 
-// TODO: in fact, we should add it to retransmitter and clear it in receiving LSAcks
+// TODO: in fact, we should add it to retransmitter and clear it in receiving LSU
 void* threadSendLSRPackets(void* nbr) {
     Neighbor* neighbor = (Neighbor*)nbr;
     
-    char* lsr_packet = (char*)malloc(1024);
-    int cnt = 0;
-    // TODO: check number of link_state_req_list
-    OSPFLSR* lsr_data = (OSPFLSR*) lsr_packet;
-    for (auto& req_lsa_header: neighbor->link_state_req_list) {
-        lsr_data->state_id = htonl(req_lsa_header.link_state_id);
-        lsr_data->adverising_router = htonl(req_lsa_header.advertising_router);
-        lsr_data->type = htonl(req_lsa_header.ls_type);
+    while (true) {
+        pthread_mutex_lock(&neighbor->link_state_req_list_lock);
+        if (neighbor->link_state_req_list.size() == 0) {
+            neighbor->eventLoadDone();
+            break;
+        }
 
-        lsr_data += 1;
-        cnt += 1;
+        char* lsr_packet = (char*)malloc(1024);
+        int cnt = 0;
+        // TODO: check number of link_state_req_list
+        OSPFLSR* lsr_data = (OSPFLSR*) lsr_packet;
+        for (auto& req_lsa_header: neighbor->link_state_req_list) {
+            lsr_data->state_id = htonl(req_lsa_header.link_state_id);
+            lsr_data->adverising_router = htonl(req_lsa_header.advertising_router);
+            lsr_data->type = htonl(req_lsa_header.ls_type);
+
+            lsr_data += 1;
+            cnt += 1;
+        }
+        pthread_mutex_unlock(&neighbor->link_state_req_list_lock);
+        sendPackets(lsr_packet, sizeof(OSPFLSR)*cnt, T_LSR, neighbor->ip, neighbor->host_interface);
+        #ifdef DEBUG
+            printf("[Thread]SendLSRPacket: send success\n");
+        #endif
+        free(lsr_packet);
+
+        sleep(neighbor->host_interface->rxmt_interval);
     }
-    sendPackets(lsr_packet, sizeof(OSPFLSR)*cnt, T_LSR, neighbor->ip, neighbor->host_interface);
-#ifdef DEBUG
-    printf("[Thread]SendLSRPacket: send success\n");
-#endif
-    neighbor->link_state_req_list.clear();
-    neighbor->link_state_req_list.shrink_to_fit();
 }
 
 void* threadRecvPackets(void *intf) {
@@ -557,6 +567,15 @@ void* threadRecvPackets(void *intf) {
             OSPFLSR* lsr_end = (OSPFLSR*)(packet_rcv + IPHDR_LEN + ospf_header->packet_length);
             Neighbor* neighbor = interface->getNeighbor(src_ip);
 
+            // check neighbor state
+            if (neighbor->state < NeighborState::S_EXCHANGE) {
+                // only S_EXCHANGE, S_LOADING, S_FULL can receive LSR
+            #ifdef DEBUG
+                printf("current neighbor state cannot receive LSR packet.\n");
+            #endif
+                continue;
+            }
+
             char* lsu_data_ack = (char*)malloc(2048); /* lsu_data_ack = lsu_body + lsu_attached */
             // OSPFLSU body ： size
             OSPFLSU* lsu_body = (OSPFLSU*)lsu_data_ack;
@@ -605,16 +624,30 @@ void* threadRecvPackets(void *intf) {
         #ifdef DEBUG
             printf("[Thread]RecvPacket: LSU packet\n");
         #endif
+            Neighbor* neighbor = nullptr;
+            bool is_specified = false;
+            // check dst : if dst_ip == interface ip, then its specified from interface's LSR
+            if (dst_ip == interface->ip) {
+                is_specified = true;
+                neighbor = interface->getNeighbor(src_ip);
+            }
+
             OSPFLSU* ospf_lsu = (OSPFLSU*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
             int lsa_num = ntohl(ospf_lsu->num);
         
-            char* lsa_ptr = (char*)(ospf_lsu) + sizeof(OSPFLSU); // +4
+            char* lsa_net_ptr = (char*)(ospf_lsu) + sizeof(OSPFLSU); // +4
             for (int i = 0; i < lsa_num; ++i) {
                 // receive lsa form ospf_lsu
-                LSAHeader* lsa_header = (LSAHeader*)lsa_ptr;
-                lsdb.addLSA(lsa_ptr);
-                lsa_ptr += lsa_header->length;
-                sendPackets((char*)lsa_header, LSAHDR_LEN, T_LSAck, ntohl(inet_addr("225.0.0.5")), interface);
+                lsdb.addLSA(lsa_net_ptr);
+                
+                LSAHeader* lsa_header = (LSAHeader*)lsa_net_ptr;
+                if (is_specified) {
+                    // remove its header from link_state_req_list if has one
+                    neighbor->reqListRemove(ntohl(lsa_header->link_state_id), ntohl(lsa_header->advertising_router));
+                }
+
+                lsa_net_ptr += ntohs(lsa_header->length);
+                sendPackets((char*)lsa_header, LSAHDR_LEN, T_LSAck, ntohl(inet_addr("224.0.0.5")), interface);
             }
         }
 

@@ -12,6 +12,7 @@ Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     last_dd_data_len = 0;
     priority = 1;
     host_interface = intf;
+    pthread_mutex_init(&link_state_req_list_lock, NULL);
 }
 
 Neighbor::~Neighbor() {
@@ -22,19 +23,36 @@ Neighbor::~Neighbor() {
 
 void Neighbor::initDBSummaryList() {
     pthread_mutex_lock(&lsdb.router_lock);
-
     for (auto& p_lsa: lsdb.router_lsas) {
         char* full_rlsa_packet = p_lsa->toRouterLSA();
         db_summary_list.push_back(((LSARouter*)full_rlsa_packet)->lsa_header);
         delete full_rlsa_packet;
     }
+    pthread_mutex_unlock(&lsdb.router_lock);
+
+    pthread_mutex_lock(&lsdb.network_lock);
     for (auto& p_lsa: lsdb.network_lsas) {
         char* full_nlsa_packet = p_lsa->toNetworkLSA();
         db_summary_list.push_back(((LSANetwork*)full_nlsa_packet)->lsa_header);
         delete full_nlsa_packet;
     }
+    pthread_mutex_unlock(&lsdb.network_lock);
+}
 
-    pthread_mutex_unlock(&lsdb.router_lock);
+void Neighbor::reqListRemove(uint32_t link_state_id, uint32_t advertise_rtr_id) {
+    pthread_mutex_lock(&link_state_req_list_lock);
+    for (auto it = link_state_req_list.begin(); it != link_state_req_list.end(); ++it) {
+        if (it->link_state_id == link_state_id &&
+            it->advertising_router == advertise_rtr_id) {
+            #ifdef DEBUG
+                printf("link_state_req_list: remove one successfully.\n");
+            #endif
+            link_state_req_list.erase(it);
+            break;
+        }
+    }
+    link_state_req_list.shrink_to_fit();
+    pthread_mutex_unlock(&link_state_req_list_lock);
 }
 
 void Neighbor::eventHelloReceived() {
@@ -128,6 +146,7 @@ void Neighbor::eventExchangeDone() {
             /* has all lsas: no need to request */
             state = NeighborState::S_FULL;
             printf("and its state from EXCHANGE -> FULL.\n");
+            onGeneratingRouterLSA();
             if (host_interface->dr == host_interface->ip) {
                 onGeneratingNetworkLSA(host_interface);
             }
@@ -150,6 +169,17 @@ void Neighbor::evnetBadLSReq() {
         // init sending empty dd packet (M/I/MS = 1) again
         state = NeighborState::S_EXSTART;
         printf("and its state from XXX -> EXSTART.\n");
+    } else {
+        printf("and reject.\n");
+    }
+}
+
+void Neighbor::eventLoadDone() {
+    printf("Neighbor %x received LoadDone ", this->id);
+    if (state == NeighborState::S_LOADING) {
+        state = NeighborState::S_FULL;
+        printf("and its state from LOADING -> FULL.\n");
+        onGeneratingRouterLSA();
     } else {
         printf("and reject.\n");
     }

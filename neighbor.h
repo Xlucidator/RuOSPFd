@@ -62,11 +62,13 @@ public:
     std::map<uint32_t, uint32_t> link_state_rxmt_map;  // {dd_seq_num:id}
     std::deque<LSAHeader> db_summary_list; // already in net order
     std::deque<LSAHeader> link_state_req_list;
+    pthread_mutex_t link_state_req_list_lock;
     pthread_t empty_dd_send_thread; // for negotiation of master/slave
     pthread_t lsr_send_thread;
 
     Neighbor(in_addr_t ip, Interface* intf);
     ~Neighbor();
+    void reqListRemove(uint32_t link_state_id, uint32_t advertise_rtr_id);
 
     void eventHelloReceived();  // neighbor's hello has been received
     void event2WayReceived();
@@ -75,6 +77,7 @@ public:
     void eventSeqNumberMismatch();
     void eventExchangeDone();
     void evnetBadLSReq();
+    void eventLoadDone();
 
 private:
     void initDBSummaryList();
