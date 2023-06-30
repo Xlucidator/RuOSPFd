@@ -508,6 +508,7 @@ void* threadRecvPackets(void *intf) {
                         interface->rxmtter.delPacketData(neighbor->link_state_rxmt_map[neighbor->dd_seq_num]);
                     }
                     neighbor->dd_seq_num += 1;
+                    dd_ack->sequence_number = htonl(neighbor->dd_seq_num);
 
                     // evoke event if there's no more dd packet
                     // [Attention]: Master would always evoke this event after Slave  
