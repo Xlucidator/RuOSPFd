@@ -24,10 +24,14 @@ int main(int argc, char** argv) {
     /* init thread global attribute */
     pthread_attr_init(&myconfigs::thread_attr);
     pthread_attr_setdetachstate(&myconfigs::thread_attr, PTHREAD_CREATE_DETACHED);
+    // init lsa_seq_lock
+    pthread_mutex_init(&lsa_seq_lock, NULL);
 
+    /* start thread */
     pthread_create(&hello_sender_thread, NULL, threadSendHelloPackets, &interface1);
     pthread_create(&receiver_thread, NULL, threadRecvPackets, &interface1);
 
+    /* wait for thread */
     pthread_join(hello_sender_thread, NULL);
     pthread_join(receiver_thread, NULL);
     return 0;

@@ -7,13 +7,28 @@
 #include <vector>
 
 
+// TODO: should leave lsdb.xxx_lock in the LSDB class itself!
 void onGeneratingRouterLSA() {
+    #ifdef DEBUG
+        printf("...generating a router lsa...\n");
+    #endif
     LSARouter* router_lsa = genRouterLSA(myconfigs::interfaces);
 
     LSARouter* lsa_find = lsdb.getRouterLSA(myconfigs::router_id, myconfigs::router_id);
-    // to compare
-    if (lsa_find == nullptr || !(*lsa_find == *router_lsa)) {
+    // assure its comparible
+    if (lsa_find == nullptr) {
         /* lsdb do not contain this lsa: add the lsa */
+        #ifdef DEBUG
+            printf("it is a new router lsa, insert to lsdb\n");
+        #endif
+        pthread_mutex_lock(&lsdb.router_lock);
+        lsdb.router_lsas.push_back(router_lsa);
+        pthread_mutex_unlock(&lsdb.router_lock);
+    } else if (*router_lsa > *lsa_find){
+        #ifdef DEBUG
+            printf("it is a newer router lsa, insert to lsdb, remove old one\n");
+        #endif
+        lsdb.delLSA(lsa_find->lsa_header.link_state_id, lsa_find->lsa_header.advertising_router, LSA_ROUTER);
         pthread_mutex_lock(&lsdb.router_lock);
         lsdb.router_lsas.push_back(router_lsa);
         pthread_mutex_unlock(&lsdb.router_lock);
@@ -22,11 +37,17 @@ void onGeneratingRouterLSA() {
 }
 
 void onGeneratingNetworkLSA(Interface* interface) {
+    #ifdef DEBUG
+        printf("...generating a network lsa...\n");
+    #endif
     LSANetwork* network_lsa = genNetworkLSA(interface);
 
     LSANetwork* lsa_find = lsdb.getNetworkLSA(myconfigs::router_id, interface->ip);
     if (lsa_find == nullptr || !(*lsa_find == *network_lsa)) {
         /* lsdb do not contain this lsa: add the lsa */
+        #ifdef DEBUG
+            printf("it is a new network lsa, insert to lsdb\n");
+        #endif
         pthread_mutex_lock(&lsdb.network_lock);
         lsdb.network_lsas.push_back(network_lsa);
         pthread_mutex_unlock(&lsdb.network_lock);
@@ -39,6 +60,10 @@ LSARouter* genRouterLSA(std::vector<Interface*>& sel_interfaces) {
     router_lsa->lsa_header.ls_type = 1;
     router_lsa->lsa_header.advertising_router = myconfigs::router_id;
     router_lsa->lsa_header.link_state_id = myconfigs::router_id;
+    pthread_mutex_lock(&lsa_seq_lock);
+        router_lsa->lsa_header.ls_sequence_number += lsa_seq_cnt;
+        lsa_seq_cnt += 1;
+    pthread_mutex_unlock(&lsa_seq_lock);
 
     for (auto& interface: sel_interfaces) {
         if (interface->state == InterfaceState::S_DOWN) {
@@ -72,6 +97,10 @@ LSANetwork* genNetworkLSA(Interface *interface) {
     network_lsa->lsa_header.ls_type = 2;
     network_lsa->lsa_header.advertising_router = myconfigs::router_id;
     network_lsa->lsa_header.link_state_id = interface->ip;
+    pthread_mutex_lock(&lsa_seq_lock);
+        network_lsa->lsa_header.ls_sequence_number += lsa_seq_cnt;
+        lsa_seq_cnt += 1;
+    pthread_mutex_unlock(&lsa_seq_lock);
 
     for (auto& p_neighbor: interface->neighbor_list) {
         if (p_neighbor->state == NeighborState::S_FULL) {
