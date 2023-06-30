@@ -14,7 +14,8 @@ PacketData::PacketData(const char* data, size_t data_len, uint8_t type, uint32_t
 }
 
 PacketData::~PacketData() {
-    free((void*)data);
+    // free((void*)data);  will cause 'free(): double free detected in tcache 2'
+    // TODO : why, seem to have memory leak
 }
 
 
