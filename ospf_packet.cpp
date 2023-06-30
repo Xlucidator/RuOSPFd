@@ -121,9 +121,28 @@ bool LSARouterLink::operator==(const LSARouterLink& other) {
 }
 
 
+/* ============ LSA ============ */
+LSA::LSA() {
+    lsa_header = LSAHeader();
+}
+
+/* bigger(>) means newer */
+bool LSA::operator>(const LSA& other) {
+    // comparible: two Instances of one LSA
+    // assert link_state_id and advertising_router is equal
+    assert(lsa_header.link_state_id == other.lsa_header.link_state_id);
+    assert(lsa_header.advertising_router == other.lsa_header.advertising_router);
+    if (this->lsa_header.ls_sequence_number > other.lsa_header.ls_sequence_number) {
+        return true;
+    } else if (this->lsa_header.ls_sequence_number == other.lsa_header.ls_sequence_number) {
+        // TODO: compare checksum and more
+    }
+    return false;
+}
+
 /* ============ Router LSA ============ */
 LSARouter::LSARouter() {
-    lsa_header = LSAHeader();
+    // lsa_header = LSAHeader();
     zero1 = 0;
     b_B = b_E = b_V = 0;
     zero2 = 0;
@@ -199,15 +218,10 @@ bool LSARouter::operator==(const LSARouter& other) {    // lsa update? i don't t
     return true;
 }
 
-bool LSARouter::operator>(const LSARouter& other) {
-    // TODO： not good enough, we should first make sure it's comparible!
-    return this->lsa_header.ls_sequence_number > other.lsa_header.ls_sequence_number;
-}
-
 
 /* ============ Netword LSA ============ */
 LSANetwork::LSANetwork() {
-    lsa_header = LSAHeader();
+    // lsa_header = LSAHeader();
     network_mask = 0xffffff00;  // not good
 }
 

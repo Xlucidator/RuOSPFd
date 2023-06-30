@@ -127,8 +127,15 @@ struct LSARouterLink {
     bool operator==(const LSARouterLink& other);
 };
 
-struct LSARouter {
-    LSAHeader   lsa_header;
+struct LSA {
+    LSAHeader lsa_header;
+
+    LSA();
+    bool operator>(const LSA& other);
+};
+
+struct LSARouter : public LSA {
+    // LSAHeader   lsa_header;
     /* data part */
     uint8_t     zero1 : 5;
         uint8_t     b_V : 1;    // Virtual : is virtual channel
@@ -143,11 +150,11 @@ struct LSARouter {
     char* toRouterLSA();  // [attention]: need to be del
     size_t size();
     bool operator==(const LSARouter& other);
-    bool operator>(const LSARouter& other);
+    // bool operator>(const LSARouter& other);
 };
 
-struct LSANetwork {
-    LSAHeader   lsa_header;
+struct LSANetwork : public LSA {
+    // LSAHeader   lsa_header;
     /* data part */
     uint32_t    network_mask;   // init
     std::vector<uint32_t> attached_routers; // assign: ip list

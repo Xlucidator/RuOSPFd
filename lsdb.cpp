@@ -6,6 +6,8 @@ LSDB::LSDB() {
     pthread_mutex_init(&router_lock, NULL);
     pthread_mutex_init(&network_lock, NULL);
 
+    max_age = 3600;
+    max_age_diff = 900;
 }
 
 LSDB::~LSDB() {

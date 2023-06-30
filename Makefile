@@ -25,6 +25,8 @@ all : $(TARGET)
 %.o : %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# TODO: need more relationship like 'lsa_manage.o : ospf_packet.o' and so on
+
 # Link object files to executable
 $(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) $(OBJS) -o $(TARGET)

@@ -15,6 +15,9 @@ public:
     std::vector<LSANetwork*> network_lsas;
     pthread_mutex_t network_lock;
 
+    uint16_t    max_age;        // max time an lsa can survive, default 3600s
+    uint16_t    max_age_diff;   // max time an lsa flood the AS, default 900s
+
     LSDB();
     ~LSDB();
     LSARouter* getRouterLSA(uint32_t link_state_id, uint32_t advertise_rtr_id);
