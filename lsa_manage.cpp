@@ -15,6 +15,7 @@ void onGeneratingRouterLSA() {
     LSARouter* router_lsa = genRouterLSA(myconfigs::interfaces);
 
     LSARouter* lsa_find = lsdb.getRouterLSA(myconfigs::router_id, myconfigs::router_id);
+    bool is_added = false;
     // assure its comparible
     if (lsa_find == nullptr) {
         /* lsdb do not contain this lsa: add the lsa */
@@ -24,7 +25,8 @@ void onGeneratingRouterLSA() {
         pthread_mutex_lock(&lsdb.router_lock);
         lsdb.router_lsas.push_back(router_lsa);
         pthread_mutex_unlock(&lsdb.router_lock);
-    } else if (*router_lsa > *lsa_find){
+        // is_added = true;
+    } else if (*router_lsa > *lsa_find) {
         #ifdef DEBUG
             printf("it is a newer router lsa, insert to lsdb, remove old one\n");
         #endif
@@ -32,8 +34,15 @@ void onGeneratingRouterLSA() {
         pthread_mutex_lock(&lsdb.router_lock);
         lsdb.router_lsas.push_back(router_lsa);
         pthread_mutex_unlock(&lsdb.router_lock);
+        is_added = true;
     }
     // consider -- so why not use <set>
+    if (is_added) {
+    #ifdef DEBUG
+        printf("...try to flood lsa\n");
+    #endif
+        lsdb.floodLSA(router_lsa, myconfigs::interfaces);
+    }
 }
 
 void onGeneratingNetworkLSA(Interface* interface) {
@@ -43,6 +52,7 @@ void onGeneratingNetworkLSA(Interface* interface) {
     LSANetwork* network_lsa = genNetworkLSA(interface);
 
     LSANetwork* lsa_find = lsdb.getNetworkLSA(myconfigs::router_id, interface->ip);
+    bool is_added = false;
     if (lsa_find == nullptr || !(*lsa_find == *network_lsa)) {
         /* lsdb do not contain this lsa: add the lsa */
         #ifdef DEBUG
@@ -51,13 +61,29 @@ void onGeneratingNetworkLSA(Interface* interface) {
         pthread_mutex_lock(&lsdb.network_lock);
         lsdb.network_lsas.push_back(network_lsa);
         pthread_mutex_unlock(&lsdb.network_lock);
+    } else if (*network_lsa > *lsa_find) {
+        #ifdef DEBUG
+            printf("it is a newer network lsa, insert to lsdb, remove old one\n");
+        #endif
+        lsdb.delLSA(lsa_find->lsa_header.link_state_id, lsa_find->lsa_header.advertising_router, LSA_NETWORK);
+        pthread_mutex_lock(&lsdb.network_lock);
+        lsdb.network_lsas.push_back(network_lsa);
+        pthread_mutex_unlock(&lsdb.network_lock);
+        is_added = true;
+    }
+
+    if (is_added) {
+    #ifdef DEBUG
+        printf("...try to flood lsa\n");
+    #endif
+        lsdb.floodLSA(network_lsa, myconfigs::interfaces);
     }
 }
 
 LSARouter* genRouterLSA(std::vector<Interface*>& sel_interfaces) {
     LSARouter* router_lsa = new LSARouter();
 
-    router_lsa->lsa_header.ls_type = 1;
+    router_lsa->lsa_header.ls_type = 1; // unnecessary now
     router_lsa->lsa_header.advertising_router = myconfigs::router_id;
     router_lsa->lsa_header.link_state_id = myconfigs::router_id;
     pthread_mutex_lock(&lsa_seq_lock);
@@ -94,7 +120,7 @@ LSARouter* genRouterLSA(std::vector<Interface*>& sel_interfaces) {
 LSANetwork* genNetworkLSA(Interface *interface) {
     LSANetwork* network_lsa = new LSANetwork();
 
-    network_lsa->lsa_header.ls_type = 2;
+    network_lsa->lsa_header.ls_type = 2; // unnecessary now
     network_lsa->lsa_header.advertising_router = myconfigs::router_id;
     network_lsa->lsa_header.link_state_id = interface->ip;
     pthread_mutex_lock(&lsa_seq_lock);

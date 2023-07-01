@@ -30,7 +30,7 @@ all : $(TARGET)
 # Link object files to executable
 $(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) $(OBJS) -o $(TARGET)
-	sudo ./$(TARGET)
+# sudo ./$(TARGET)
 
 clean:
 	rm -rf $(TARGET) *.o

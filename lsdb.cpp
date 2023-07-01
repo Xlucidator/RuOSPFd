@@ -1,6 +1,6 @@
 #include "lsdb.h"
 #include "common.h"
-
+#include "packet_manage.h"
 
 LSDB::LSDB() {
     pthread_mutex_init(&router_lock, NULL);
@@ -127,4 +127,28 @@ void LSDB::delLSA(uint32_t link_state_id, uint32_t advertise_rtr_id, uint8_t typ
         }
         pthread_mutex_unlock(&network_lock);
     }
+}
+
+void LSDB::floodLSA(LSA* lsa, std::vector<Interface*>& sel_interfaces) {
+    // send LSU to 224.0.0.5
+
+    char* lsu_data = (char*)malloc(1024);
+    // LSU body : size
+    OSPFLSU* lsu_body = (OSPFLSU*)lsu_data;
+    memset(lsu_body, 0, sizeof(OSPFLSU));
+    lsu_body->num = htonl(1);
+    // LSU attached : lsa
+    char* lsu_attached = lsu_data + sizeof(OSPFLSU);
+    char* lsa_packet = lsa->toLSAPacket();
+    memcpy(lsu_attached, lsa_packet, lsa->size());
+    delete[] lsa_packet; // release new char[size()] in toLSAPacket
+    
+    for (auto& interface: sel_interfaces) {
+        if (interface->state == InterfaceState::S_DROTHER ||
+            interface->state == InterfaceState::S_BACKUP ||
+            interface->state == InterfaceState::S_POINT2POINT) {
+            sendPackets(lsu_data, sizeof(OSPFLSU) + lsa->size(), T_LSU, ntohl(inet_addr("224.0.0.5")), interface);
+        }
+    }
+    free(lsu_data);
 }

@@ -2,6 +2,7 @@
 #define LSDB_H
 
 #include "ospf_packet.h"
+#include "interface.h"
 
 #include <vector>
 #include <stdint.h>
@@ -26,6 +27,7 @@ public:
     LSANetwork* getNetworkLSA(uint32_t link_state_id);
     void addLSA(char* net_ptr); // add LSA from netptr from LSU, for all types
     void delLSA(uint32_t link_state_id, uint32_t advertise_rtr_id, uint8_t type);
+    void floodLSA(LSA* lsa, std::vector<Interface*>& sel_interfaces); // on lsdb updated
 };
 
 
