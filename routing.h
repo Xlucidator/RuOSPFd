@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <map>
+#include <linux/route.h>
 #include "interface.h"
 
 struct EdgeToVertex {
@@ -44,6 +45,7 @@ struct RouteItem {
     uint32_t next_hop;
     uint32_t metric;
     uint8_t  type;
+    // TODO: interface <--> dev
 
     RouteItem();
     RouteItem(uint32_t dst_ip, uint32_t next_hop, uint32_t metric);
@@ -52,10 +54,17 @@ struct RouteItem {
 
 class RouteTable {
 public:
+    /* about content */
     std::map<uint32_t, Vertex> topo;     // <rtr_id, v >
     std::map<uint32_t, ToVertex> result; // <rtr_id, tv>
     std::map<uint32_t, RouteItem> routings; // <net, routeitem>
-    
+
+    /* interact with linux kernel route */
+    int routefd;  // socket to read/write kernel route
+    std::vector<struct rtentry> rtentries_written;  // route that has been written to kernel
+
+    RouteTable();
+    ~RouteTable();
     void updateRoutings();
     void printTopology();
     void printResult();
@@ -65,6 +74,8 @@ private:
     void buildTopology();
     void caclulateRouting();
     void genRouting();
+    void resetRoute();  // reset kernel route to normal
+    void writeKernelRoute();
 };
 
 extern RouteTable route_manager;

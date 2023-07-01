@@ -3,12 +3,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>     // memset()
 #include <stdint.h>
 #include <iostream>
 #include <assert.h>
 
-#include <unistd.h>
+#include <unistd.h>     // close()
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -21,8 +21,8 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h> // ETH_P_IP ... ethernet frame
 
-/* nic */
-#include <sys/ioctl.h>
+/* kernel */
+#include <sys/ioctl.h>  // ioctl()
 #include <net/if.h>     // ifr
 #include <arpa/inet.h>  // inet_addr inet_ntoa()
 

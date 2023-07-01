@@ -1,7 +1,12 @@
 #include "routing.h"
-#include "common.h"
+// #include "common.h" :  conflict 'linux/route.h' with 'net/if.h'
+#include "setting.h"
 #include "lsdb.h"
 #include "ospf_packet.h"
+
+#include <sys/ioctl.h>  // ioctl()
+#include <unistd.h>     // close()
+#include <string.h>     // memset()
 
 #define INF (0x7fffffff)
 
@@ -68,6 +73,19 @@ void RouteItem::printInfo() {
 
 
 /* RouteTable */
+RouteTable::RouteTable() {
+    routefd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (routefd < 0) {
+        perror("init routefd");
+        return;
+    }
+}
+
+RouteTable::~RouteTable() {
+    resetRoute();
+    close(routefd);
+}
+
 void RouteTable::buildTopology() {
     topo.clear();
 
@@ -206,6 +224,55 @@ void RouteTable::genRouting() {
     }
 }
 
+void RouteTable::resetRoute() {
+    int ret;
+    for (auto& route: rtentries_written) {
+        ret = ioctl(routefd, SIOCDELRT, &route);
+        if (ret < 0) {
+            struct sockaddr_in dest = *((struct sockaddr_in*)&route.rt_dst);
+            printf("delete route %s", inet_ntoa(dest.sin_addr));
+            perror(":");
+        }
+    }
+    rtentries_written.clear();
+#ifdef DEBUG
+    printf("reset kernel route successfully.\n");
+#endif
+}
+
+void RouteTable::writeKernelRoute() {
+    resetRoute();   // remove the last ospf writing to kernel route
+
+    int ret;
+    for (auto& route_item: routings) {
+        RouteItem* rtitem = &route_item.second;
+        struct rtentry rtentry;
+        memset(&rtentry, 0, sizeof(rtentry));
+        // write dest
+        rtentry.rt_dst.sa_family = AF_INET;
+        ((struct sockaddr_in*)&rtentry.rt_dst)->sin_addr.s_addr = htonl(rtitem->dest);
+        rtentry.rt_genmask.sa_family = AF_INET;
+        ((struct sockaddr_in*)&rtentry.rt_genmask)->sin_addr.s_addr = htonl(rtitem->mask);
+        rtentry.rt_gateway.sa_family = AF_INET;
+        ((struct sockaddr_in*)&rtentry.rt_gateway)->sin_addr.s_addr = htonl(rtitem->next_hop);
+        rtentry.rt_metric = rtitem->metric;
+        rtentry.rt_flags = RTF_UP | RTF_GATEWAY;
+
+        struct rtentry rtentry_copy = rtentry;
+        if ((ret = ioctl(routefd, SIOCADDRT, &rtentry)) < 0) {
+            perror("add route:");
+        } else {
+        #ifdef DEBUG
+            printf("add one route successfully.\n");
+        #endif
+            rtentries_written.push_back(rtentry_copy);
+        }
+    }
+#ifdef DEBUG
+    printf("write kernel route successfully.\n");
+#endif
+}
+
 // public
 void RouteTable::updateRoutings() {
 #ifdef DEBUG
@@ -220,6 +287,7 @@ void RouteTable::updateRoutings() {
     genRouting();
     printRouting();
 
+    writeKernelRoute();
 }
 
 void RouteTable::printTopology() {
