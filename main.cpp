@@ -6,6 +6,7 @@
 #include "routing.h"
 
 #include <pthread.h>
+#include <string>
 
 bool start_ospfd();
 
@@ -34,9 +35,22 @@ int main(int argc, char** argv) {
     pthread_create(&hello_sender_thread, NULL, threadSendHelloPackets, &interface1);
     pthread_create(&receiver_thread, NULL, threadRecvPackets, &interface1);
 
+    while (true) {
+        std::string operation;
+        std::cin >> operation;
+        std::cout << operation << std::endl;
+        if (operation == "exit") {
+            printf("killing ospf...\n");
+            to_exit = true;
+            break;
+        }
+    }
+
     /* wait for thread */
     pthread_join(hello_sender_thread, NULL);
     pthread_join(receiver_thread, NULL);
+
+    printf("ospf close\n");
     return 0;
 }
 

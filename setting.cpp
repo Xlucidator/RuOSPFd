@@ -14,3 +14,5 @@ namespace myconfigs {
 struct in_addr ipaddr_tmp;
 int lsa_seq_cnt = 0;
 pthread_mutex_t lsa_seq_lock;
+
+bool to_exit = false;

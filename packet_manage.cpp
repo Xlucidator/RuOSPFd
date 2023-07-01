@@ -99,6 +99,10 @@ void* threadSendHelloPackets(void* intf) {
 
     char* packet = (char*)malloc(65535);
     while (true) {
+        if (to_exit) {
+            break;
+        }
+
         // add neighbor
         size_t packet_real_len = OSPFHDR_LEN + sizeof(OSPFHello) + 4 * interface->neighbor_list.size();
 
@@ -144,7 +148,8 @@ void* threadSendHelloPackets(void* intf) {
         sleep(interface->hello_intervel);
     }
 
-    free(packet);
+    // free(packet);
+    pthread_exit(NULL);
 }
 
 void* threadSendEmptyDDPackets(void* nbr) {
@@ -169,6 +174,7 @@ void* threadSendEmptyDDPackets(void* nbr) {
         sleep(neighbor->host_interface->rxmt_interval); // normally 5
     }
     
+    pthread_exit(NULL);
 }
 
 // TODO: in fact, we should add it to retransmitter and clear it in receiving LSU
@@ -176,6 +182,10 @@ void* threadSendLSRPackets(void* nbr) {
     Neighbor* neighbor = (Neighbor*)nbr;
     
     while (true) {
+        if (to_exit) {
+            break;
+        }
+
         pthread_mutex_lock(&neighbor->link_state_req_list_lock);
         if (neighbor->link_state_req_list.size() == 0) {
             neighbor->eventLoadDone();
@@ -203,6 +213,8 @@ void* threadSendLSRPackets(void* nbr) {
 
         sleep(neighbor->host_interface->rxmt_interval);
     }
+
+    pthread_exit(NULL);
 }
 
 void* threadRecvPackets(void *intf) {
@@ -230,6 +242,10 @@ void* threadRecvPackets(void *intf) {
     char* frame_rcv = (char*)malloc(RECV_LEN);
     char* packet_rcv = frame_rcv + sizeof(struct ethhdr);
     while (true) {
+        if (to_exit) {
+            break;
+        }
+
         memset(frame_rcv, 0, RECV_LEN);
         int recv_size = recv(socket_fd, frame_rcv, RECV_LEN, 0);
         
@@ -654,6 +670,7 @@ void* threadRecvPackets(void *intf) {
         after_dealing:;
     }
 
-    free(packet_rcv);
+    // free(packet_rcv);
+    pthread_exit(NULL);
 #undef RECV_LEN
 }

@@ -22,4 +22,6 @@ extern struct in_addr ipaddr_tmp;
 extern int lsa_seq_cnt;
 extern pthread_mutex_t lsa_seq_lock;
 
+extern bool to_exit;
+
 #endif // SETTINGS_H

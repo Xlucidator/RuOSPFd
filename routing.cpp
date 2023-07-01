@@ -82,6 +82,7 @@ RouteTable::RouteTable() {
 }
 
 RouteTable::~RouteTable() {
+    printf("destuct route_manager...\n");
     resetRoute();
     close(routefd);
 }
