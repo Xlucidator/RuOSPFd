@@ -13,6 +13,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <pthread.h>
+
 /* socket */ 
 #include <sys/socket.h>
 #include <netinet/in.h> // ntoh hton ...

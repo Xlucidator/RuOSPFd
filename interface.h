@@ -52,7 +52,7 @@ public:
 
     Retransmitter rxmtter = Retransmitter(this);  // use for rxmt
 
-    uint32_t    cost = 0;
+    uint32_t    cost = 1;
     uint32_t    mtu = 1500;
 
     uint32_t    dr = 0;

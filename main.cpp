@@ -3,12 +3,14 @@
 #include "interface.h"
 #include "packet_manage.h"
 #include "lsdb.h"
+#include "routing.h"
 
 #include <pthread.h>
 
 bool start_ospfd();
 
 LSDB lsdb;
+RouteTable route_manager;
 
 int main(int argc, char** argv) {
     // start_ospfd();
@@ -19,6 +21,7 @@ int main(int argc, char** argv) {
     Interface interface1;
     interface1.ip = ntohl(inet_addr("192.168.75.128")); // TODO: read nic for addr
     myconfigs::interfaces.push_back(&interface1);
+    myconfigs::ip2interface[interface1.ip] = &interface1;
     interface1.eventInterfaceUp();
 
     /* init thread global attribute */

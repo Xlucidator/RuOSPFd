@@ -3,6 +3,7 @@
 #include "lsdb.h"
 #include "packet_manage.h"
 #include "lsa_manage.h"
+#include "routing.h"
 
 Neighbor::Neighbor(in_addr_t ip, Interface* intf):ip(ip) {
     state = NeighborState::S_DOWN;
@@ -183,6 +184,9 @@ void Neighbor::eventLoadDone() {
         state = NeighborState::S_FULL;
         printf("and its state from LOADING -> FULL.\n");
         onGeneratingRouterLSA();
+        
+        route_manager.updateRoutings();
+
     } else {
         printf("and reject.\n");
     }

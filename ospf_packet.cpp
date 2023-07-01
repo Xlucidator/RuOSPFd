@@ -93,9 +93,9 @@ void LSAHeader::printInfo() {
     printf("====[LSA Header]====\n");
     printf("ls_age: %d\n", ls_age);
     printf("ls_type: %d\n", ls_type);
-    ipaddr_tmp.s_addr = link_state_id;
+    ipaddr_tmp.s_addr = htonl(link_state_id);
     printf("link_state_id: %s\n", inet_ntoa(ipaddr_tmp));
-    ipaddr_tmp.s_addr = advertising_router;
+    ipaddr_tmp.s_addr = htonl(advertising_router);
     printf("advertising_router: %s\n", inet_ntoa(ipaddr_tmp));
     printf("ls_sequence_number: %x\n", ls_sequence_number);
     printf("====================\n");
@@ -104,6 +104,7 @@ void LSAHeader::printInfo() {
 /* ============ Router Link ============ */
 LSARouterLink::LSARouterLink() {
     tos_num = 0;    // we assume 0 for convenience
+    metric  = 1;
 }
 
 LSARouterLink::LSARouterLink(char* net_ptr) {
