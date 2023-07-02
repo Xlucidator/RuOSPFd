@@ -64,10 +64,12 @@ void LSDB::addLSA(char* net_ptr) {
         LSARouter* rlsa = new LSARouter(net_ptr);
         
         // checksum
+    #ifdef DEBUG
         LSARouter test_rlsa = *rlsa;
         printf("recv checksum: %x\n", rlsa->lsa_header.ls_checksum);
         printf("self checksum:\n");
         test_rlsa.toRouterLSA();
+    #endif
 
         LSARouter* lsa_check = getRouterLSA(rlsa->lsa_header.link_state_id, rlsa->lsa_header.advertising_router);
         pthread_mutex_lock(&router_lock);

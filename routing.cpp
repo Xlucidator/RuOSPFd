@@ -16,7 +16,7 @@ Vertex::Vertex(uint32_t router_id):rtr_id(router_id) {}
 
 void Vertex::printInfo() {
     ipaddr_tmp.s_addr = htonl(rtr_id);
-    printf("Vertex [%-15s]\n", inet_ntoa(ipaddr_tmp));
+    printf("Vertex: [%-15s]\n", inet_ntoa(ipaddr_tmp));
     for (auto& adj_item: adjacencies) {
         EdgeToVertex* e2v = &adj_item.second;
         ipaddr_tmp.s_addr = htonl(e2v->src_ip);
@@ -46,7 +46,7 @@ ToVertex::ToVertex(uint32_t rtr_id, uint32_t cost, uint32_t next_hop, Interface*
 
 void ToVertex::printInfo() {
     ipaddr_tmp.s_addr = htonl(dst_vtx_id);
-    printf("to [%-15s]: %d\t", inet_ntoa(ipaddr_tmp), metric);
+    printf("to [%-15s]: %02d ", inet_ntoa(ipaddr_tmp), metric);
     ipaddr_tmp.s_addr = htonl(next_hop);
     printf("%-15s\n", inet_ntoa(ipaddr_tmp));
 }
@@ -63,12 +63,12 @@ RouteItem::RouteItem(uint32_t dst_ip, uint32_t next_hop, uint32_t metric) {
 
 void RouteItem::printInfo() {
     ipaddr_tmp.s_addr = htonl(dest);
-    printf("%-15s ", inet_ntoa(ipaddr_tmp));
+    printf("| %-15s ", inet_ntoa(ipaddr_tmp));
     ipaddr_tmp.s_addr = htonl(mask);
-    printf("|%-15s ", inet_ntoa(ipaddr_tmp));
+    printf("| %-15s ", inet_ntoa(ipaddr_tmp));
     ipaddr_tmp.s_addr = htonl(next_hop);
-    printf("|%-15s ", inet_ntoa(ipaddr_tmp));
-    printf("| %d \n", metric);
+    printf("| %-15s ", inet_ntoa(ipaddr_tmp));
+    printf("|   %02d   | \n", metric);
 }
 
 
@@ -292,25 +292,26 @@ void RouteTable::updateRoutings() {
 }
 
 void RouteTable::printTopology() {
-    printf("## Topology ##\n");
+    printf("————————————————————— Topology —————————————————————\n");
     for (auto& topo_item: topo) {
         topo_item.second.printInfo();
-    }
-    printf("##############\n");
+    } 
+    printf("—————————————————————————————————————————————————————\n");
 }
 
 void RouteTable::printResult() {
-    printf("##  Result  ##\n");
+    printf("—————————————— Result ———————————————\n");
     for (auto& result_item: result) {
         result_item.second.printInfo();
     }
-    printf("##############\n");
+    printf("—————————————————————————————————————\n");
 }
 
 void RouteTable::printRouting() {
-    printf("##  Routing ##\n");
+    printf("——————————————————————————— Routing ———————————————————————————\n");
+    printf("|    dest_ip      |    net_mask     |    next_hop     | metric |\n");
     for (auto& route_item: routings) {
         route_item.second.printInfo();
     }
-    printf("##############\n");
+    printf("———————————————————————————————————————————————————————————————\n");
 }
