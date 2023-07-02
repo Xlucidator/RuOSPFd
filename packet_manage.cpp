@@ -265,8 +265,8 @@ void* threadRecvPackets(void *intf) {
 
         #ifdef DEBUG
             printf("[Thread]RecvPacket: recv one");
-            src.s_addr = src_ip;
-            dst.s_addr = dst_ip;
+            src.s_addr = htonl(src_ip);
+            dst.s_addr = htonl(dst_ip);
             printf(" src:%s,", inet_ntoa(src)); // inet_ntoa() -> char* is static
             printf(" dst:%s\n", inet_ntoa(dst));
         #endif
@@ -606,7 +606,7 @@ void* threadRecvPackets(void *intf) {
                 if (lsr_rcv->type == LSA_ROUTER) {
                     LSARouter* router_lsa = lsdb.getRouterLSA(lsr_rcv->state_id, lsr_rcv->adverising_router);
                     if (router_lsa == nullptr) {
-                        neighbor->evnetBadLSReq();
+                        neighbor->eventBadLSReq();
                         free(lsu_data_ack);
                         goto after_dealing; // TODO: just an expedient
                     } else {
@@ -618,7 +618,7 @@ void* threadRecvPackets(void *intf) {
                 } else if (lsr_rcv->type == LSA_NETWORK) {
                     LSANetwork* network_lsa = lsdb.getNetworkLSA(lsr_rcv->state_id, lsr_rcv->adverising_router);
                     if (network_lsa == nullptr) {
-                        neighbor->evnetBadLSReq();
+                        neighbor->eventBadLSReq();
                         free(lsu_data_ack);
                         goto after_dealing; // TODO: just an expedient
                     } else {

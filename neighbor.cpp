@@ -164,7 +164,7 @@ void Neighbor::eventExchangeDone() {
     }
 }
 
-void Neighbor::evnetBadLSReq() {
+void Neighbor::eventBadLSReq() {
     printf("Neighbor %x received BadLSReq ", this->id);
     // TODO: similar to event SeqNumberMismatch, need to negotiate a new adjacent relationship
     if (state >= NeighborState::S_EXCHANGE) {

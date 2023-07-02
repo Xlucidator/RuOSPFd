@@ -256,7 +256,7 @@ void RouteTable::writeKernelRoute() {
         ((struct sockaddr_in*)&rtentry.rt_genmask)->sin_addr.s_addr = htonl(rtitem->mask);
         rtentry.rt_gateway.sa_family = AF_INET;
         ((struct sockaddr_in*)&rtentry.rt_gateway)->sin_addr.s_addr = htonl(rtitem->next_hop);
-        rtentry.rt_metric = rtitem->metric;
+        rtentry.rt_metric = htons((uint16_t)rtitem->metric);
         rtentry.rt_flags = RTF_UP | RTF_GATEWAY;
 
         struct rtentry rtentry_copy = rtentry;

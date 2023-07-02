@@ -76,7 +76,7 @@ public:
     void eventNegotiationDone();
     void eventSeqNumberMismatch();
     void eventExchangeDone();
-    void evnetBadLSReq();
+    void eventBadLSReq();
     void eventLoadDone();
 
 private:
