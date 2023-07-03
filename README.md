@@ -31,7 +31,7 @@ retransmitter.cpp/.h	# 重传工具
 
 ### 总体设计
 
-<img src="https://i.postimg.cc/k44LcsRs/image.png" style="zoom:60%;" />
+<img src="https://i.postimg.cc/k44LcsRs/image.png" style="width:60%;" />
 
 ### 运行方式
 
@@ -40,3 +40,8 @@ retransmitter.cpp/.h	# 重传工具
 精简控制台输出：去除 `setting.h` 的 `#define DEBUG`
 
 调试环境中g++用的标准是C++14，但估计顶多用到C++11的功能为止
+
+### 参考资料
+- RFC 2328：有种规范的美感
+- 《OSPF完全实现》及其源码：比较复杂完整，没有太多精力借鉴
+- [pcyin:OSPF_Router](https://github.com/pcyin/OSPF_Router)：感恩，对照着写的（但读了遍有好多bug，感觉跑不起来的样子）
