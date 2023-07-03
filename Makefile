@@ -1,36 +1,11 @@
-# C++ Compiler
-CXX = g++
-
-# Compiler flags
-CXXFLAGS = -Wall -Wextra -std=c++11
-
-# Linker flags
-LDFLAGS = -pthread
-
-# Source files
-SRCS = $(wildcard *.cpp)
-
-# Object files
-OBJS = $(SRCS:.cpp=.o)	# replace all '.cpp' with '.o' in SRCS
-
-# Executable file
-TARGET = my_ospf
+include config.mk
 
 .PHONY: all clean
 
-# Final Target
-all : $(TARGET)
-
-# Compile object files from source files
-%.o : %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# TODO: need more relationship like 'lsa_manage.o : ospf_packet.o' and so on
-
-# Link object files to executable
-$(TARGET): $(OBJS)
-	$(CXX) $(LDFLAGS) $(OBJS) -o $(TARGET)
-# sudo ./$(TARGET)
+all : 
+	cd src/ && $(MAKE)
+	cp src/$(TARGET) ./
 
 clean:
-	rm -rf $(TARGET) *.o
+	rm $(TARGET)
+	cd src/ && $(MAKE) clean
