@@ -45,9 +45,7 @@ Neighbor* Interface::addNeighbor(in_addr_t ip) {
 }
 
 void Interface::electDesignedRouter() {
-#ifdef DEBUG
     printf("\n\tstart electing DR/BDR...\n");
-#endif
 
     std::list<Neighbor*> candidates;
 
@@ -123,11 +121,10 @@ void Interface::electDesignedRouter() {
     this->dr = dr->ip;
     this->bdr = bdr->ip;
 
-#ifdef DEBUG
     printf("\tnew dr: %x\n", this->dr);
     printf("\tnew bdr: %x\n", this->bdr);
     printf("\tfinished\n");
-#endif
+
 }
 
 
