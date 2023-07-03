@@ -650,7 +650,9 @@ void* threadRecvPackets(void *intf) {
 
             OSPFLSU* ospf_lsu = (OSPFLSU*)(packet_rcv + IPHDR_LEN + OSPFHDR_LEN);
             int lsa_num = ntohl(ospf_lsu->num);
-        
+
+            char* lsack_data = (char*)malloc(1024); 
+            LSAHeader* lsa_header_writer = (LSAHeader*)lsack_data;
             char* lsa_net_ptr = (char*)(ospf_lsu) + sizeof(OSPFLSU); // +4
             for (int i = 0; i < lsa_num; ++i) {
                 // receive lsa form ospf_lsu
@@ -662,9 +664,14 @@ void* threadRecvPackets(void *intf) {
                     neighbor->reqListRemove(ntohl(lsa_header->link_state_id), ntohl(lsa_header->advertising_router));
                 }
 
+                memcpy(lsa_header_writer, lsa_header, sizeof(LSAHeader));
+                lsa_header_writer += 1;
                 lsa_net_ptr += ntohs(lsa_header->length);
-                sendPackets((char*)lsa_header, LSAHDR_LEN, T_LSAck, ntohl(inet_addr("224.0.0.5")), interface);
+                // sendPackets((char*)lsa_header, LSAHDR_LEN, T_LSAck, ntohl(inet_addr("224.0.0.5")), interface);
             }
+            // TODO: check num and verify
+            sendPackets(lsack_data, LSAHDR_LEN * lsa_num, T_LSAck, ntohl(inet_addr("224.0.0.5")), interface);
+            free(lsack_data);
         }
 
         after_dealing:;
