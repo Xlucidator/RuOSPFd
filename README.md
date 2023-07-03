@@ -31,7 +31,7 @@ retransmitter.cpp/.h	# 重传工具
 
 ### 总体设计
 
-<img src="https://i.postimg.cc/k44LcsRs/image.png" style="zoom:80%;" />
+<img src="https://i.postimg.cc/k44LcsRs/image.png" style="zoom:60%;" />
 
 ### 运行方式
 
